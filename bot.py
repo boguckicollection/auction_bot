@@ -69,35 +69,24 @@ async def start_aukcja(ctx):
     await asyncio.sleep(aktualna_aukcja.czas)
     await zakoncz_aukcje(msg)
 
-def zapisz_html(aukcja: Aukcja):
-    html = f"""
-    <html>
-    <head>
-        <meta charset='utf-8'>
-        <title>Licytacja - {aukcja.nazwa}</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; background: #1e1e2f; color: white; padding: 2em; }}
-            .card {{ background: #2e2e3f; padding: 1em; border-radius: 10px; max-width: 600px; margin: auto; box-shadow: 0 0 20px rgba(255,255,255,0.1); }}
-            h1, h2, h3 {{ color: #ffd700; }}
-            ul {{ padding-left: 1em; }}
-            li {{ margin-bottom: 0.5em; }}
-        </style>
-    </head>
-    <body>
-        <div class="card">
-            <h1>{aukcja.nazwa} ({aukcja.numer})</h1>
-            <p>{aukcja.opis}</p>
-            <h2>Ostateczna cena: {aukcja.cena:.2f} PLN</h2>
-            <h3>Zwycięzca: {aukcja.zwyciezca}</h3>
-            <h4>Historia licytacji:</h4>
-            <ul>
-                {''.join([f'<li>{u} - {c:.2f} PLN - {t}</li>' for u, c, t in aukcja.historia])}
-            </ul>
-        </div>
-    </body>
-    </html>
-    """
-    with open('aktualna_aukcja.html', 'w', encoding='utf-8') as f:
+def zapisz_html(aukcja: Aukcja, template_path: str = "templates/auction_template.html"):
+    with open(template_path, encoding="utf-8") as f:
+        template = f.read()
+
+    historia_html = "".join(
+        f"<li>{u} - {c:.2f} PLN - {t}</li>" for u, c, t in aukcja.historia
+    )
+
+    html = template.format(
+        nazwa=aukcja.nazwa,
+        numer=aukcja.numer,
+        opis=aukcja.opis,
+        cena=aukcja.cena,
+        zwyciezca=aukcja.zwyciezca,
+        historia=historia_html,
+    )
+
+    with open("aktualna_aukcja.html", "w", encoding="utf-8") as f:
         f.write(html)
 
 def zapisz_json(aukcja: Aukcja):
