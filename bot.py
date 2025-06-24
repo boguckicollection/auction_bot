@@ -72,26 +72,52 @@ async def start_aukcja(ctx):
 def zapisz_html(aukcja: Aukcja):
     html = f"""
     <html>
-    <head><meta charset='utf-8'><title>Licytacja - {aukcja.nazwa}</title></head>
-    <body style='font-family: sans-serif;'>
-    <h1>{aukcja.nazwa} ({aukcja.numer})</h1>
-    <p>{aukcja.opis}</p>
-    <h2>Ostateczna cena: {aukcja.cena:.2f} PLN</h2>
-    <h3>Zwycięzca: {aukcja.zwyciezca}</h3>
-    <h4>Historia licytacji:</h4>
-    <ul>
-    {''.join([f'<li>{u} - {c} PLN - {t}</li>' for u, c, t in aukcja.historia])}
-    </ul>
+    <head>
+        <meta charset='utf-8'>
+        <title>Licytacja - {aukcja.nazwa}</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; background: #1e1e2f; color: white; padding: 2em; }}
+            .card {{ background: #2e2e3f; padding: 1em; border-radius: 10px; max-width: 600px; margin: auto; box-shadow: 0 0 20px rgba(255,255,255,0.1); }}
+            h1, h2, h3 {{ color: #ffd700; }}
+            ul {{ padding-left: 1em; }}
+            li {{ margin-bottom: 0.5em; }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>{aukcja.nazwa} ({aukcja.numer})</h1>
+            <p>{aukcja.opis}</p>
+            <h2>Ostateczna cena: {aukcja.cena:.2f} PLN</h2>
+            <h3>Zwycięzca: {aukcja.zwyciezca}</h3>
+            <h4>Historia licytacji:</h4>
+            <ul>
+                {''.join([f'<li>{u} - {c:.2f} PLN - {t}</li>' for u, c, t in aukcja.historia])}
+            </ul>
+        </div>
     </body>
     </html>
     """
     with open('aktualna_aukcja.html', 'w', encoding='utf-8') as f:
         f.write(html)
 
+def zapisz_json(aukcja: Aukcja):
+    dane = {
+        "nazwa": aukcja.nazwa,
+        "numer": aukcja.numer,
+        "opis": aukcja.opis,
+        "ostateczna_cena": aukcja.cena,
+        "zwyciezca": str(aukcja.zwyciezca),
+        "historia": aukcja.historia,
+        "start_time": aukcja.start_time.isoformat() if aukcja.start_time else None
+    }
+    with open('aktualna_aukcja.json', 'w', encoding='utf-8') as f:
+        json.dump(dane, f, ensure_ascii=False, indent=2)
+
 async def zakoncz_aukcje(msg):
     global aktualna_aukcja
     if aktualna_aukcja:
         zapisz_html(aktualna_aukcja)
+        zapisz_json(aktualna_aukcja)
         await msg.reply(f"🔔 Aukcja zakończona! Wygrał **{aktualna_aukcja.zwyciezca}** za **{aktualna_aukcja.cena:.2f} PLN**")
         aktualna_aukcja = None
 
