@@ -1,0 +1,25 @@
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Licytacja - {nazwa}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; background: #1e1e2f; color: white; padding: 2em; }}
+        .card {{ background: #2e2e3f; padding: 1em; border-radius: 10px; max-width: 600px; margin: auto; box-shadow: 0 0 20px rgba(255,255,255,0.1); }}
+        h1, h2, h3 {{ color: #ffd700; }}
+        ul {{ padding-left: 1em; }}
+        li {{ margin-bottom: 0.5em; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>{nazwa} ({numer})</h1>
+        <p>{opis}</p>
+        <h2>Ostateczna cena: {cena:.2f} PLN</h2>
+        <h3>Zwycięzca: {zwyciezca}</h3>
+        <h4>Historia licytacji:</h4>
+        <ul>
+            {historia}
+        </ul>
+    </div>
+</body>
+</html>
