@@ -1,3 +1,4 @@
+import os
 import discord
 from discord.ext import commands, tasks
 import csv
@@ -5,16 +6,30 @@ import asyncio
 import datetime
 import json
 from typing import List
+from dotenv import load_dotenv
+from googleapiclient.discovery import build
 
-TOKEN = 'TU_WPROWADZ_TOKEN_BOTA'
-GUILD_ID = 1234567890  # ID twojego serwera
-AUKCJE_KANAL_ID = 1234567890  # ID kanału licytacji
-ADMIN_ID = 1234567890  # Twój Discord ID
+load_dotenv()
+
+TOKEN = os.getenv("DISCORD_TOKEN")
+GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))
+AUKCJE_KANAL_ID = int(os.getenv("AUKCJE_KANAL_ID", "0"))
+ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+LIVE_CHAT_ID = os.getenv("LIVE_CHAT_ID")
 
 bot = commands.Bot(command_prefix='/', intents=discord.Intents.all())
 
 aukcje_kolejka = []
 aktualna_aukcja = None
+youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY) if YOUTUBE_API_KEY else None
+yt_page_token = None
+
+
+@bot.event
+async def on_ready():
+    if youtube:
+        check_youtube_chat.start()
 
 class Aukcja:
     def __init__(self, nazwa, numer, opis, cena_start, przebicie, czas):
@@ -102,11 +117,23 @@ def zapisz_json(aukcja: Aukcja):
     with open('aktualna_aukcja.json', 'w', encoding='utf-8') as f:
         json.dump(dane, f, ensure_ascii=False, indent=2)
 
+def zapisz_zamowienie(aukcja: Aukcja):
+    order_number = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
+    os.makedirs('orders', exist_ok=True)
+    with open(f'orders/zamowienie_{order_number}.txt', 'w', encoding='utf-8') as f:
+        f.write(
+            f'Uzytkownik: {aukcja.zwyciezca}\n'
+            f'Karta: {aukcja.nazwa}\n'
+            f'Cena: {aukcja.cena:.2f}\n'
+            f'Numer zamowienia: {order_number}\n'
+        )
+
 async def zakoncz_aukcje(msg):
     global aktualna_aukcja
     if aktualna_aukcja:
         zapisz_html(aktualna_aukcja)
         zapisz_json(aktualna_aukcja)
+        zapisz_zamowienie(aktualna_aukcja)
         await msg.reply(f"🔔 Aukcja zakończona! Wygrał **{aktualna_aukcja.zwyciezca}** za **{aktualna_aukcja.cena:.2f} PLN**")
         aktualna_aukcja = None
 
@@ -122,5 +149,26 @@ class LicytacjaView(discord.ui.View):
             return
         aktualna_aukcja.licytuj(interaction.user)
         await interaction.response.send_message(f"✅ Twoja oferta: {aktualna_aukcja.cena:.2f} PLN", ephemeral=True)
+
+
+@tasks.loop(seconds=5)
+async def check_youtube_chat():
+    global yt_page_token
+    if not youtube or not LIVE_CHAT_ID or not aktualna_aukcja:
+        return
+    try:
+        resp = youtube.liveChatMessages().list(
+            liveChatId=LIVE_CHAT_ID,
+            part="snippet,authorDetails",
+            pageToken=yt_page_token
+        ).execute()
+        yt_page_token = resp.get("nextPageToken")
+        for item in resp.get("items", []):
+            msg_text = item["snippet"]["displayMessage"].lower()
+            if "!bit" in msg_text:
+                user = item["authorDetails"]["displayName"]
+                aktualna_aukcja.licytuj(user)
+    except Exception:
+        pass
 
 bot.run(TOKEN)
