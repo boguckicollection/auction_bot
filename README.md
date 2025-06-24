@@ -16,6 +16,7 @@ DISCORD_TOKEN=your_discord_bot_token
 DISCORD_GUILD_ID=your_server_id
 AUKCJE_KANAL_ID=channel_id_for_auctions
 ADMIN_ID=discord_user_id_allowed_to_manage
+ORDER_CHANNEL_ID=channel_id_for_orders
 YOUTUBE_API_KEY=optional_youtube_api_key
 LIVE_CHAT_ID=optional_live_chat_id
 ```
@@ -50,5 +51,9 @@ python bot.py
    - `aktualna_aukcja.html` – summary page generated from `templates/auction_template.html`
    - `aktualna_aukcja.json` – machine‑readable auction data
    - `orders/` – text file with basic order information
+5. Po zakończeniu aukcji zwycięzca otrzymuje prywatną wiadomość z potwierdzeniem
+   zakupu i wyborem metody płatności. Po wybraniu bot publikuje zamówienie na
+   kanale wskazanym w `ORDER_CHANNEL_ID`, gdzie możesz je potwierdzić reakcją
+   ✅. Potwierdzenie wysyła kupującemu finalną wiadomość o przyjęciu zamówienia.
 
 Feel free to modify `templates/auction_template.html` to change how the summary page looks.

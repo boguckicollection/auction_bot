@@ -15,6 +15,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))
 AUKCJE_KANAL_ID = int(os.getenv("AUKCJE_KANAL_ID", "0"))
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+ORDER_CHANNEL_ID = int(os.getenv("ORDER_CHANNEL_ID", "0"))
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 LIVE_CHAT_ID = os.getenv("LIVE_CHAT_ID")
 
@@ -24,6 +25,7 @@ aukcje_kolejka = []
 aktualna_aukcja = None
 youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY) if YOUTUBE_API_KEY else None
 yt_page_token = None
+pending_orders = {}
 
 
 @bot.event
@@ -42,6 +44,8 @@ class Aukcja:
         self.historia = []
         self.zwyciezca = None
         self.start_time = None
+        self.order_number = None
+        self.payment_method = None
 
     def licytuj(self, user):
         self.cena += self.przebicie
@@ -117,8 +121,24 @@ def zapisz_json(aukcja: Aukcja):
     with open('aktualna_aukcja.json', 'w', encoding='utf-8') as f:
         json.dump(dane, f, ensure_ascii=False, indent=2)
 
+def generate_order_number() -> str:
+    now = datetime.datetime.utcnow()
+    prefix = f"AUC-{now.year}-{now.month:02d}-"
+    os.makedirs('orders', exist_ok=True)
+    counter_file = 'orders/counter.txt'
+    try:
+        with open(counter_file, 'r') as f:
+            counter = int(f.read().strip())
+    except FileNotFoundError:
+        counter = 0
+    counter += 1
+    with open(counter_file, 'w') as f:
+        f.write(str(counter))
+    return prefix + f"{counter:04d}"
+
 def zapisz_zamowienie(aukcja: Aukcja):
-    order_number = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
+    order_number = generate_order_number()
+    aukcja.order_number = order_number
     os.makedirs('orders', exist_ok=True)
     with open(f'orders/zamowienie_{order_number}.txt', 'w', encoding='utf-8') as f:
         f.write(
@@ -128,13 +148,50 @@ def zapisz_zamowienie(aukcja: Aukcja):
             f'Numer zamowienia: {order_number}\n'
         )
 
+async def send_order_dm(aukcja: Aukcja):
+    if not isinstance(aukcja.zwyciezca, discord.User):
+        return
+    due_date = (datetime.datetime.utcnow() + datetime.timedelta(days=2)).strftime('%d %B %Y %H:%M')
+    view = OrderView(aukcja)
+    message = (
+        f"Gratulacje! Wygrałeś licytację karty {aukcja.nazwa} {aukcja.numer} za {aukcja.cena:.2f} PLN.\n"
+        f"Koszt wysyłki: 10,00 PLN (jeśli to Twoja pierwsza karta).\n"
+        "Wybierz metodę płatności i potwierdź zakup:"
+    )
+    try:
+        await aukcja.zwyciezca.send(message, view=view)
+        await aukcja.zwyciezca.send(f"Masz czas do {due_date}.")
+    except discord.Forbidden:
+        pass
+
+async def notify_order_channel(aukcja: Aukcja):
+    channel = bot.get_channel(ORDER_CHANNEL_ID)
+    if channel is None:
+        return
+    embed = discord.Embed(
+        title=f"Zamówienie {aukcja.order_number}",
+        description=f"{aukcja.nazwa} ({aukcja.numer})",
+        color=0x00FF00,
+    )
+    embed.add_field(name="Cena", value=f"{aukcja.cena:.2f} PLN", inline=False)
+    if aukcja.payment_method:
+        embed.add_field(name="Metoda płatności", value=aukcja.payment_method, inline=False)
+    embed.add_field(name="Kupujący", value=str(aukcja.zwyciezca), inline=False)
+    embed.set_footer(text="Status: oczekuje na potwierdzenie")
+    msg = await channel.send(embed=embed)
+    pending_orders[msg.id] = aukcja
+    await msg.add_reaction("✅")
+
 async def zakoncz_aukcje(msg):
     global aktualna_aukcja
     if aktualna_aukcja:
         zapisz_html(aktualna_aukcja)
         zapisz_json(aktualna_aukcja)
         zapisz_zamowienie(aktualna_aukcja)
-        await msg.reply(f"🔔 Aukcja zakończona! Wygrał **{aktualna_aukcja.zwyciezca}** za **{aktualna_aukcja.cena:.2f} PLN**")
+        await msg.reply(
+            f"🔔 Aukcja zakończona! Wygrał **{aktualna_aukcja.zwyciezca}** za **{aktualna_aukcja.cena:.2f} PLN**"
+        )
+        await send_order_dm(aktualna_aukcja)
         aktualna_aukcja = None
 
 class LicytacjaView(discord.ui.View):
@@ -149,6 +206,26 @@ class LicytacjaView(discord.ui.View):
             return
         aktualna_aukcja.licytuj(interaction.user)
         await interaction.response.send_message(f"✅ Twoja oferta: {aktualna_aukcja.cena:.2f} PLN", ephemeral=True)
+
+
+class OrderView(discord.ui.View):
+    def __init__(self, aukcja: Aukcja):
+        super().__init__(timeout=None)
+        self.aukcja = aukcja
+
+    async def _process(self, interaction: discord.Interaction, method: str):
+        self.aukcja.payment_method = method
+        await interaction.response.send_message("Dziękujemy za potwierdzenie.", ephemeral=True)
+        await notify_order_channel(self.aukcja)
+        self.stop()
+
+    @discord.ui.button(label='BLIK', style=discord.ButtonStyle.primary)
+    async def blik(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._process(interaction, "BLIK")
+
+    @discord.ui.button(label='PRZELEW', style=discord.ButtonStyle.secondary)
+    async def przelew(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._process(interaction, "PRZELEW")
 
 
 @tasks.loop(seconds=5)
@@ -170,5 +247,20 @@ async def check_youtube_chat():
                 aktualna_aukcja.licytuj(user)
     except Exception:
         pass
+
+
+@bot.event
+async def on_reaction_add(reaction, user):
+    if user.bot:
+        return
+    if reaction.message.id in pending_orders and str(reaction.emoji) == "✅" and user.id == ADMIN_ID:
+        aukcja = pending_orders.pop(reaction.message.id)
+        if isinstance(aukcja.zwyciezca, discord.User):
+            try:
+                await aukcja.zwyciezca.send(
+                    f"✅ Twoje zamówienie {aukcja.order_number} zostało potwierdzone.\nWkrótce karta trafi do wysyłki. Dzięki za udział w licytacji!"
+                )
+            except discord.Forbidden:
+                pass
 
 bot.run(TOKEN)
