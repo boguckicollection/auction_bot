@@ -32,7 +32,6 @@ youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY) if YOUTUBE_API_KE
 yt_page_token = None
 pending_orders = {}
 seller_panel_msg: discord.Message | None = None
-announcement_msg: discord.Message | None = None
 paused = False
 
 
@@ -101,22 +100,19 @@ async def update_panel_embed():
     else:
         seller_panel_msg = await channel.send(embed=embed, view=view)
 
-    await update_announcement_embed()
 
 
 async def update_announcement_embed():
-    """Update or create the public announcement embed."""
+    """Embed dla sprzedawcy na kanale ogłoszeń"""
     channel = bot.get_channel(OGLOSZENIA_KANAL_ID)
     if channel is None:
         return
-    embed = discord.Embed(title="Aktualna aukcja", color=0xffd700)
-    queue_preview = "\n".join(
-        f"{a.nazwa} ({a.numer})" for a in aukcje_kolejka[:5]
-    ) or "Brak"
-    embed.add_field(name="Następne karty", value=queue_preview, inline=False)
+
+    embed = discord.Embed(title="🔔 Ogłoszenie aukcji", color=0x00bfff)
+
     if aktualna_aukcja:
         embed.add_field(
-            name="Licytowana karta",
+            name="Aktualna karta",
             value=f"{aktualna_aukcja.nazwa} ({aktualna_aukcja.numer})",
             inline=False,
         )
@@ -126,24 +122,26 @@ async def update_announcement_embed():
             inline=True,
         )
         embed.add_field(
-            name="Podbicie",
-            value=f"{aktualna_aukcja.przebicie:.2f} PLN",
+            name="Prowadzi",
+            value=f"{aktualna_aukcja.zwyciezca or 'Brak'}",
             inline=True,
         )
-        if aktualna_aukcja.zwyciezca:
+
+        if aktualna_aukcja.start_time:
+            czas_koniec = aktualna_aukcja.start_time + datetime.timedelta(seconds=aktualna_aukcja.czas)
             embed.add_field(
-                name="Prowadzi",
-                value=str(aktualna_aukcja.zwyciezca),
+                name="Koniec aukcji",
+                value=czas_koniec.strftime('%H:%M:%S'),
                 inline=False,
             )
-    global announcement_msg
-    if announcement_msg:
-        try:
-            await announcement_msg.edit(embed=embed)
-        except discord.NotFound:
-            announcement_msg = await channel.send(embed=embed)
-    else:
-        announcement_msg = await channel.send(embed=embed)
+
+        if aktualna_aukcja.obraz_url:
+            embed.set_thumbnail(url=aktualna_aukcja.obraz_url)
+
+    kolejka = "\n".join(f"{a.nazwa} ({a.numer})" for a in aukcje_kolejka[:5]) or "Brak"
+    embed.add_field(name="W kolejce", value=kolejka, inline=False)
+
+    await channel.send(embed=embed)
 
 
 async def countdown_task(message: discord.Message, seconds: int):
@@ -194,6 +192,7 @@ async def start_next_auction(interaction: discord.Interaction | None = None):
 
     bot.loop.create_task(countdown_task(msg, aktualna_aukcja.czas))
     await update_panel_embed()
+    await update_announcement_embed()
 
 
 @bot.event
@@ -237,6 +236,7 @@ async def zaladuj(ctx):
     await ctx.send(f'Załadowano {len(aukcje_kolejka)} aukcji.')
     await update_panel_embed()
     await start_next_auction()
+    await update_announcement_embed()
 
 @bot.command()
 async def start_aukcja(ctx):
