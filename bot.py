@@ -257,7 +257,7 @@ def zapisz_html(aukcja: Aukcja, template_path: str = "templates/auction_template
         template = Template(f.read())
 
     historia_html = "".join(
-        f"<li>{u} - {c:.2f} PLN - {t}</li>" for u, c, t in aukcja.historia
+        f"<li>{u} - {c:.2f} PLN - {t}</li>" for u, c, t in aukcja.historia[-4:]
     )
 
     html = template.safe_substitute(
@@ -279,8 +279,8 @@ def zapisz_json(aukcja: Aukcja):
         "numer": aukcja.numer,
         "opis": aukcja.opis,
         "ostateczna_cena": aukcja.cena,
-        "zwyciezca": str(aukcja.zwyciezca),
-        "historia": aukcja.historia,
+        "zwyciezca": str(aukcja.zwyciezca) if aukcja.zwyciezca else None,
+        "historia": aukcja.historia[-4:],
         "start_time": (aukcja.start_time.isoformat() + "Z") if aukcja.start_time else None,
         "czas": aukcja.czas,
         "obraz": aukcja.obraz_url,
@@ -360,11 +360,16 @@ async def zakoncz_aukcje(msg):
     if aktualna_aukcja:
         zapisz_html(aktualna_aukcja)
         zapisz_json(aktualna_aukcja)
-        zapisz_zamowienie(aktualna_aukcja)
-        await msg.reply(
-            f"🔔 Aukcja zakończona! Wygrał **{aktualna_aukcja.zwyciezca}** za **{aktualna_aukcja.cena:.2f} PLN**"
-        )
-        await send_order_dm(aktualna_aukcja)
+        if aktualna_aukcja.zwyciezca:
+            zapisz_zamowienie(aktualna_aukcja)
+            await msg.reply(
+                f"🔔 Aukcja zakończona! Wygrał **{aktualna_aukcja.zwyciezca}** za **{aktualna_aukcja.cena:.2f} PLN**"
+            )
+            await send_order_dm(aktualna_aukcja)
+        else:
+            await msg.reply(
+                f"🔔 Aukcja zakończona bez zwyci\u0119zcy - {aktualna_aukcja.nazwa}"
+            )
         aktualna_aukcja = None
         await update_panel_embed()
 
