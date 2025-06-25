@@ -3,9 +3,12 @@
 <head>
     <meta charset="utf-8">
     <title>Licytacja - ${nazwa}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Trebuchet MS', Helvetica, sans-serif;
+            font-family: 'Inter', Helvetica, sans-serif;
             margin:0;
             background:url('https://source.unsplash.com/random/1920x1080?texture') no-repeat center center fixed;
             background-size:cover;
@@ -13,19 +16,19 @@
         }
         .overlay {
             backdrop-filter: blur(8px);
-            background: rgba(0,0,0,0.6);
+            background: rgba(0,0,0,0.7);
             min-height:100vh;
             padding:2em;
         }
         .card {
-            background: rgba(46,46,63,0.8);
-            padding:1em;
-            border-radius:10px;
-            max-width:600px;
+            background: rgba(30,30,45,0.85);
+            padding:1.5em 2em;
+            border-radius:12px;
+            max-width:650px;
             margin:auto;
-            box-shadow:0 0 20px rgba(255,255,255,0.1);
+            box-shadow:0 10px 30px rgba(0,0,0,0.4);
         }
-        h1,h2,h3 { color:#ffd700; margin-top:0; }
+        h1,h2,h3 { color:#ffd700; margin-top:0; text-align:center; }
         ul { padding-left:1em; list-style:none; }
         li { margin-bottom:0.5em; }
         .new-bid { animation: fadeIn 0.5s ease-in; }
@@ -43,6 +46,24 @@
             text-align:center;
         }
         #countdown.red { color:red; }
+        #price {
+            font-size:3em;
+            text-align:center;
+            color:#00ff90;
+            position:relative;
+        }
+        #price.up::after {
+            content:'\25B2';
+            color:#00ff90;
+            position:absolute;
+            right:-0.6em;
+            top:0;
+            animation:rise 0.6s ease-out;
+        }
+        @keyframes rise {
+            0% {transform:translateY(10px); opacity:0;}
+            100% {transform:translateY(-10px); opacity:1;}
+        }
         @keyframes pulse {
             0% { transform:scale(1); }
             50% { transform:scale(1.1); }
@@ -68,6 +89,8 @@
 <script>
 let historyLength = document.querySelectorAll('#history li').length;
 let started = false;
+let lastStart = null;
+let lastPrice = null;
 function startUpdates(){
     started = true;
     fetchData();
@@ -76,11 +99,31 @@ function startUpdates(){
 }
 function fetchData(){
     fetch('aktualna_aukcja.json',{cache:'no-cache'}).then(r=>r.json()).then(data=>{
-        document.getElementById('title').textContent = data.nazwa + ' (' + data.numer + ')';
-        document.getElementById('desc').textContent = data.opis;
-        document.getElementById('price').textContent = data.ostateczna_cena.toFixed(2) + ' PLN';
         const list = document.getElementById('history');
         const img = document.getElementById('card-img');
+
+        if(!lastStart || lastStart !== data.start_time){
+            list.innerHTML = '';
+            historyLength = 0;
+            end = null;
+            document.getElementById('winner').style.display='none';
+            document.getElementById('desc').style.display='block';
+            document.getElementById('price').style.display='block';
+            document.getElementById('history').style.display='block';
+            lastPrice = null;
+            lastStart = data.start_time;
+        }
+
+        document.getElementById('title').textContent = data.nazwa + ' (' + data.numer + ')';
+        document.getElementById('desc').textContent = data.opis;
+        const priceEl = document.getElementById('price');
+        priceEl.textContent = data.ostateczna_cena.toFixed(2) + ' PLN';
+        if(lastPrice !== null && data.ostateczna_cena > lastPrice){
+            priceEl.classList.add('up');
+            setTimeout(()=>priceEl.classList.remove('up'),600);
+        }
+        lastPrice = data.ostateczna_cena;
+
         if(data.obraz){
             img.src = data.obraz;
             img.style.display = 'block';
@@ -96,17 +139,17 @@ function fetchData(){
             }
         }
         auctionData = data;
+        if(data.start_time){
+            end = new Date(Date.parse(data.start_time) + data.czas*1000);
+        }
     }).catch(()=>{});
 }
 let end = null;
 let auctionData = null;
 function updateCountdown(){
     if(!started) return;
-    if(!end){
-        fetch('aktualna_aukcja.json',{cache:'no-cache'}).then(r=>r.json()).then(d=>{
-            if(d.start_time) end = new Date(Date.parse(d.start_time) + d.czas*1000);
-        });
-        return;
+    if(!end && auctionData && auctionData.start_time){
+        end = new Date(Date.parse(auctionData.start_time) + auctionData.czas*1000);
     }
     const now = new Date();
     const diff = Math.floor((end - now)/1000);
