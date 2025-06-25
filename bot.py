@@ -33,6 +33,7 @@ youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY) if YOUTUBE_API_KE
 yt_page_token = None
 pending_orders = {}
 seller_panel_msg: discord.Message | None = None
+auction_msg: discord.Message | None = None
 paused = False
 
 
@@ -150,8 +151,33 @@ async def update_announcement_embed():
     await channel.send(embed=embed)
 
 
+async def update_auction_embed():
+    """Update the live auction embed with current price, leader and countdown."""
+    if not aktualna_aukcja or not auction_msg:
+        return
+    embed = discord.Embed(
+        title=f"Aukcja: {aktualna_aukcja.nazwa} ({aktualna_aukcja.numer})",
+        description=aktualna_aukcja.opis,
+        color=0xffd700,
+    )
+    embed.add_field(name="Cena", value=f"{aktualna_aukcja.cena:.2f} PLN", inline=True)
+    embed.add_field(name="Prowadzi", value=str(aktualna_aukcja.zwyciezca or 'Brak'), inline=True)
+    if aktualna_aukcja.start_time:
+        end_time = aktualna_aukcja.start_time + datetime.timedelta(seconds=aktualna_aukcja.czas)
+        remaining = int((end_time - datetime.datetime.utcnow()).total_seconds())
+        if remaining < 0:
+            remaining = 0
+        embed.set_footer(text=f"Pozosta\u0142o: {remaining}s")
+    if aktualna_aukcja.obraz_url:
+        embed.set_image(url=aktualna_aukcja.obraz_url)
+    await auction_msg.edit(embed=embed)
+
+
 async def countdown_task(message: discord.Message, seconds: int):
-    await asyncio.sleep(seconds)
+    await update_auction_embed()
+    for _ in range(seconds):
+        await asyncio.sleep(1)
+        await update_auction_embed()
     await zakoncz_aukcje(message)
     await update_panel_embed()
 
@@ -192,6 +218,10 @@ async def start_next_auction(interaction: discord.Interaction | None = None):
 
     channel = bot.get_channel(AUKCJE_KANAL_ID)
     msg = await channel.send(embed=embed, view=LicytacjaView())
+    global auction_msg
+    auction_msg = msg
+
+    await update_auction_embed()
 
     zapisz_html(aktualna_aukcja)
     zapisz_json(aktualna_aukcja)
@@ -357,21 +387,36 @@ async def notify_order_channel(aukcja: Aukcja):
     await msg.add_reaction("✅")
 
 async def zakoncz_aukcje(msg):
-    global aktualna_aukcja
+    global aktualna_aukcja, auction_msg
     if aktualna_aukcja:
         zapisz_html(aktualna_aukcja)
         zapisz_json(aktualna_aukcja)
         if aktualna_aukcja.zwyciezca:
             zapisz_zamowienie(aktualna_aukcja)
             await msg.reply(
-                f"🔔 Aukcja zakończona! Wygrał **{aktualna_aukcja.zwyciezca}** za **{aktualna_aukcja.cena:.2f} PLN**"
+                f"🔔 Aukcja zako\u0144czona! Wygra\u0142 **{aktualna_aukcja.zwyciezca}** za **{aktualna_aukcja.cena:.2f} PLN**"
             )
             await send_order_dm(aktualna_aukcja)
         else:
             await msg.reply(
-                f"🔔 Aukcja zakończona bez zwyci\u0119zcy - {aktualna_aukcja.nazwa}"
+                f"🔔 Aukcja zako\u0144czona bez zwyci\u0119zcy - {aktualna_aukcja.nazwa}"
             )
+
+        embed = discord.Embed(
+            title=f"Aukcja zako\u0144czona: {aktualna_aukcja.nazwa}",
+            color=0xff0000,
+        )
+        embed.add_field(name="Cena ko\u0144cowa", value=f"{aktualna_aukcja.cena:.2f} PLN", inline=True)
+        embed.add_field(name="Zwyci\u0119zca", value=str(aktualna_aukcja.zwyciezca or 'Brak'), inline=True)
+        if aktualna_aukcja.obraz_url:
+            embed.set_image(url=aktualna_aukcja.obraz_url)
+        try:
+            await msg.edit(embed=embed, view=None)
+        except discord.NotFound:
+            pass
+
         aktualna_aukcja = None
+        auction_msg = None
         await update_panel_embed()
 
 
@@ -412,6 +457,7 @@ class LicytacjaView(discord.ui.View):
         zapisz_json(aktualna_aukcja)
         await interaction.response.send_message(f"✅ Twoja oferta: {aktualna_aukcja.cena:.2f} PLN", ephemeral=True)
         await update_panel_embed()
+        await update_auction_embed()
 
 
 class OrderView(discord.ui.View):
@@ -458,6 +504,7 @@ async def check_youtube_chat():
                 zapisz_html(aktualna_aukcja)
                 zapisz_json(aktualna_aukcja)
                 await update_panel_embed()
+                await update_auction_embed()
     except Exception:
         pass
 
