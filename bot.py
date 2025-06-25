@@ -34,6 +34,7 @@ yt_page_token = None
 pending_orders = {}
 seller_panel_msg: discord.Message | None = None
 auction_msg: discord.Message | None = None
+user_bid_messages: dict[int, discord.Message] = {}
 paused = False
 
 
@@ -158,37 +159,51 @@ async def update_announcement_embed():
     await channel.send(embed=embed)
 
 
+
 async def update_auction_embed():
-    """Update the live auction embed with current price, leader and countdown."""
+    """Aktualizuje embed licytacyjny z grafiką, ceną, prowadzącym i odliczaniem."""
     if not aktualna_aukcja or not auction_msg:
         return
+
     embed = discord.Embed(
-        title=f"🔥 **{aktualna_aukcja.nazwa}** ({aktualna_aukcja.numer})",
-        description=aktualna_aukcja.opis,
-        color=0xff9900,
+        title=f"🎴 {aktualna_aukcja.nazwa} ({aktualna_aukcja.numer})",
+        description=aktualna_aukcja.opis or "Brak opisu.",
+        color=0xFFD700
     )
+
     embed.add_field(
-        name="💰 **Cena**",
+        name="💸 Aktualna cena",
         value=f"**{aktualna_aukcja.cena:.2f} PLN**",
-        inline=True,
+        inline=True
     )
+
     embed.add_field(
-        name="🏆 **Prowadzi**",
-        value=f"**{aktualna_aukcja.zwyciezca or 'Brak'}**",
-        inline=True,
+        name="➕ Kwota przebicia",
+        value=f"{aktualna_aukcja.przebicie:.2f} PLN",
+        inline=True
     )
+
+    embed.add_field(
+        name="🏆 Prowadzi",
+        value=str(aktualna_aukcja.zwyciezca) if aktualna_aukcja.zwyciezca else "Brak",
+        inline=True
+    )
+
     if aktualna_aukcja.start_time:
-        end_time = aktualna_aukcja.start_time + datetime.timedelta(seconds=aktualna_aukcja.czas)
-        remaining = int((end_time - datetime.datetime.utcnow()).total_seconds())
-        if remaining < 0:
-            remaining = 0
-        embed.set_footer(text=f"⏳ Pozosta\u0142o: {remaining}s")
+        koniec = aktualna_aukcja.start_time + datetime.timedelta(seconds=aktualna_aukcja.czas)
+        pozostalo = int((koniec - datetime.datetime.utcnow()).total_seconds())
+        pozostalo = max(pozostalo, 0)
+        embed.set_footer(text=f"⏳ Pozostało: {pozostalo}s")
+
     if aktualna_aukcja.logo_url:
-        embed.set_thumbnail(url=aktualna_aukcja.logo_url)
+        embed.set_author(name="Aukcja Pokémon", icon_url=aktualna_aukcja.logo_url)
+
     if aktualna_aukcja.obraz_url:
         embed.set_image(url=aktualna_aukcja.obraz_url)
-    await auction_msg.edit(embed=embed)
+    else:
+        embed.add_field(name="Obraz", value="Brak zdjęcia karty", inline=False)
 
+    await auction_msg.edit(embed=embed)
 
 async def countdown_task(message: discord.Message, seconds: int):
     await update_auction_embed()
@@ -481,7 +496,20 @@ class LicytacjaView(discord.ui.View):
         aktualna_aukcja.licytuj(interaction.user)
         zapisz_html(aktualna_aukcja)
         zapisz_json(aktualna_aukcja)
-        await interaction.response.send_message(f"✅ Twoja oferta: {aktualna_aukcja.cena:.2f} PLN", ephemeral=True)
+        content = f"✅ Twoja oferta: {aktualna_aukcja.cena:.2f} PLN"
+        msg = user_bid_messages.get(interaction.user.id)
+        if msg:
+            await interaction.response.defer()
+            try:
+                await msg.edit(content=content)
+            except discord.NotFound:
+                msg = None
+        if not msg:
+            await interaction.response.send_message(content, ephemeral=True)
+            try:
+                user_bid_messages[interaction.user.id] = await interaction.original_response()
+            except Exception:
+                pass
         await update_panel_embed()
         await update_auction_embed()
 
