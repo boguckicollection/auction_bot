@@ -84,10 +84,16 @@
         <ul id="history">
             ${historia}
         </ul>
+        <div id="history-nav" style="text-align:center;margin-top:1em;display:none;">
+            <button id="history-prev" onclick="prevPage()" style="display:none">&laquo; Poprzednie</button>
+            <button id="history-next" onclick="nextPage()" style="display:none">Następne &raquo;</button>
+        </div>
     </div>
 </div>
 <script>
-let historyLength = document.querySelectorAll('#history li').length;
+let historyData = [];
+let historyPage = 0;
+const perPage = 5;
 let started = false;
 let lastStart = null;
 let lastPrice = null;
@@ -103,15 +109,17 @@ function fetchData(){
         const img = document.getElementById('card-img');
 
         if(!lastStart || lastStart !== data.start_time){
-            list.innerHTML = '';
-            historyLength = 0;
+            historyData = [];
+            historyPage = 0;
             end = null;
             document.getElementById('winner').style.display='none';
             document.getElementById('desc').style.display='block';
             document.getElementById('price').style.display='block';
             document.getElementById('history').style.display='block';
+            document.getElementById('history-nav').style.display='block';
             lastPrice = null;
             lastStart = data.start_time;
+            renderHistory();
         }
 
         document.getElementById('title').textContent = data.nazwa + ' (' + data.numer + ')';
@@ -129,14 +137,11 @@ function fetchData(){
             img.style.display = 'block';
         }
         if(data.historia){
-            while(historyLength < data.historia.length){
-                const [u,c,t] = data.historia[historyLength];
-                const li = document.createElement('li');
-                li.textContent = `${u} - ${c.toFixed(2)} PLN - ${t}`;
-                li.className = 'new-bid';
-                list.appendChild(li);
-                historyLength++;
+            historyData = data.historia;
+            if(historyPage * perPage >= historyData.length){
+                historyPage = Math.max(Math.ceil(historyData.length / perPage) - 1, 0);
             }
+            renderHistory();
         }
         auctionData = data;
         if(data.start_time){
@@ -166,10 +171,40 @@ function updateCountdown(){
 }
 function showWinner(data){
     document.getElementById('winner').style.display='block';
-    document.getElementById('winner').textContent = 'Zwycięzca: ' + data.zwyciezca + ' - ' + data.nazwa;
+    document.getElementById('winner').textContent = 'Gratulacje! Aukcję wygrał: ' + data.zwyciezca + ' - ' + data.nazwa;
     document.getElementById('desc').style.display='none';
     document.getElementById('price').style.display='none';
     document.getElementById('history').style.display='none';
+    document.getElementById('history-nav').style.display='none';
+    document.getElementById('history').innerHTML='';
+}
+
+function renderHistory(){
+    const list = document.getElementById('history');
+    list.innerHTML = '';
+    const start = historyPage * perPage;
+    const slice = historyData.slice(start, start + perPage);
+    for(const [u,c,t] of slice){
+        const li = document.createElement('li');
+        li.textContent = `${u} - ${c.toFixed(2)} PLN - ${t}`;
+        list.appendChild(li);
+    }
+    document.getElementById('history-prev').style.display = historyPage > 0 ? 'inline-block' : 'none';
+    document.getElementById('history-next').style.display = (start + perPage) < historyData.length ? 'inline-block' : 'none';
+}
+
+function nextPage(){
+    if((historyPage + 1) * perPage < historyData.length){
+        historyPage++;
+        renderHistory();
+    }
+}
+
+function prevPage(){
+    if(historyPage > 0){
+        historyPage--;
+        renderHistory();
+    }
 }
 </script>
 </body>
