@@ -36,18 +36,36 @@ paused = False
 
 def fetch_card_image(nazwa: str, numer: str) -> str | None:
     """Return card image URL from PokemonTCG API if available."""
-    url = "https://api.pokemontcg.io/v2/cards"
-    numer = numer.strip()
-    query = f'name:"{nazwa}" number:"{numer}"'
-    params = {"q": query, "pageSize": 1}
+    base = "https://api.pokemontcg.io/v2/cards"
+    numer = numer.strip().lower()
     headers = {}
     if POKEMONTCG_API_TOKEN:
         headers["X-Api-Key"] = POKEMONTCG_API_TOKEN
+
+    # First try to fetch by card ID (e.g. sv2-10)
     try:
-        resp = requests.get(url, params=params, headers=headers, timeout=5)
+        resp = requests.get(f"{base}/{numer}", headers=headers, timeout=5)
         if resp.status_code == 200:
-            data = resp.json()
-            cards = data.get("data")
+            card = resp.json().get("data")
+            if card:
+                return card.get("images", {}).get("large")
+    except Exception:
+        pass
+
+    # Fallback to search query if direct lookup failed
+    try:
+        set_id = ""
+        card_no = numer
+        if "-" in numer:
+            set_id, card_no = numer.split("-", 1)
+        parts = [f'name:"{nazwa}"', f'number:"{card_no}"']
+        if set_id:
+            parts.append(f'set.id:{set_id}')
+        query = " ".join(parts)
+        params = {"q": query, "pageSize": 1}
+        resp = requests.get(base, params=params, headers=headers, timeout=5)
+        if resp.status_code == 200:
+            cards = resp.json().get("data")
             if cards:
                 return cards[0].get("images", {}).get("large")
     except Exception:
