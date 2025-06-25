@@ -18,6 +18,7 @@ GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))
 AUKCJE_KANAL_ID = int(os.getenv("AUKCJE_KANAL_ID", "0"))
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 ORDER_CHANNEL_ID = int(os.getenv("ORDER_CHANNEL_ID", "0"))
+SELLER_CHANNEL_ID = int(os.getenv("SELLER_CHANNEL_ID", "0"))
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 LIVE_CHAT_ID = os.getenv("LIVE_CHAT_ID")
 POKEMONTCG_API_TOKEN = os.getenv("POKEMONTCG_API_TOKEN")
@@ -29,6 +30,8 @@ aktualna_aukcja = None
 youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY) if YOUTUBE_API_KEY else None
 yt_page_token = None
 pending_orders = {}
+seller_panel_msg: discord.Message | None = None
+paused = False
 
 
 def fetch_card_image(nazwa: str, numer: str) -> str | None:
@@ -48,6 +51,81 @@ def fetch_card_image(nazwa: str, numer: str) -> str | None:
     except Exception:
         pass
     return None
+
+
+async def update_panel_embed():
+    """Update or create the seller control panel embed."""
+    channel = bot.get_channel(SELLER_CHANNEL_ID)
+    if channel is None:
+        return
+    embed = discord.Embed(title="Panel aukcji", color=0x00FF90)
+    queue_preview = "\n".join(
+        f"{a.nazwa} ({a.numer})" for a in aukcje_kolejka[:5]
+    ) or "Brak"
+    embed.add_field(name="W kolejce", value=queue_preview, inline=False)
+    if aktualna_aukcja:
+        info = f"{aktualna_aukcja.nazwa} ({aktualna_aukcja.numer})\n" \
+            f"Cena: {aktualna_aukcja.cena:.2f} PLN"
+        if aktualna_aukcja.zwyciezca:
+            info += f"\nProwadzi: {aktualna_aukcja.zwyciezca}"
+        embed.add_field(name="Aktualna aukcja", value=info, inline=False)
+    view = PanelView()
+    global seller_panel_msg
+    if seller_panel_msg:
+        try:
+            await seller_panel_msg.edit(embed=embed, view=view)
+        except discord.NotFound:
+            seller_panel_msg = await channel.send(embed=embed, view=view)
+    else:
+        seller_panel_msg = await channel.send(embed=embed, view=view)
+
+
+async def countdown_task(message: discord.Message, seconds: int):
+    await asyncio.sleep(seconds)
+    await zakoncz_aukcje(message)
+    await update_panel_embed()
+
+
+async def start_next_auction(interaction: discord.Interaction | None = None):
+    global aktualna_aukcja
+    if paused:
+        if interaction:
+            await interaction.response.send_message("Panel wstrzymany.", ephemeral=True)
+        return
+    if aktualna_aukcja:
+        if interaction:
+            await interaction.response.send_message("Aukcja w toku.", ephemeral=True)
+        return
+    if not aukcje_kolejka:
+        if interaction:
+            await interaction.response.send_message("Brak aukcji w kolejce.", ephemeral=True)
+        return
+    if interaction:
+        await interaction.response.defer()
+
+    aktualna_aukcja = aukcje_kolejka.pop(0)
+    aktualna_aukcja.start_time = datetime.datetime.utcnow()
+    aktualna_aukcja.obraz_url = fetch_card_image(aktualna_aukcja.nazwa, aktualna_aukcja.numer)
+
+    embed = discord.Embed(
+        title=f"Aukcja: {aktualna_aukcja.nazwa} ({aktualna_aukcja.numer})",
+        description=aktualna_aukcja.opis,
+        color=0xffd700,
+    )
+    embed.add_field(name="Numer", value=aktualna_aukcja.numer, inline=True)
+    embed.add_field(name="Cena startowa", value=f"{aktualna_aukcja.cena:.2f} PLN", inline=True)
+    embed.set_footer(text=f"Czas trwania: {aktualna_aukcja.czas} sekund")
+    if aktualna_aukcja.obraz_url:
+        embed.set_image(url=aktualna_aukcja.obraz_url)
+
+    channel = bot.get_channel(AUKCJE_KANAL_ID)
+    msg = await channel.send(embed=embed, view=LicytacjaView())
+
+    zapisz_html(aktualna_aukcja)
+    zapisz_json(aktualna_aukcja)
+
+    bot.loop.create_task(countdown_task(msg, aktualna_aukcja.czas))
+    await update_panel_embed()
 
 
 @bot.event
@@ -88,35 +166,14 @@ async def zaladuj(ctx):
             aukcja = Aukcja(row['nazwa_karty'], row['numer_karty'], row['opis'], row['cena_początkowa'], row['kwota_przebicia'], row['czas_trwania'])
             aukcje_kolejka.append(aukcja)
     await ctx.send(f'Załadowano {len(aukcje_kolejka)} aukcji.')
+    await update_panel_embed()
+    await start_next_auction()
 
 @bot.command()
 async def start_aukcja(ctx):
     if ctx.author.id != ADMIN_ID:
         return
-    global aktualna_aukcja
-    if not aukcje_kolejka:
-        await ctx.send("Brak aukcji w kolejce.")
-        return
-
-    aktualna_aukcja = aukcje_kolejka.pop(0)
-    aktualna_aukcja.start_time = datetime.datetime.utcnow()
-    aktualna_aukcja.obraz_url = fetch_card_image(aktualna_aukcja.nazwa, aktualna_aukcja.numer)
-
-    embed = discord.Embed(title=f"Aukcja: {aktualna_aukcja.nazwa} ({aktualna_aukcja.numer})", description=aktualna_aukcja.opis, color=0xffd700)
-    embed.add_field(name="Numer", value=aktualna_aukcja.numer, inline=True)
-    embed.add_field(name="Cena startowa", value=f"{aktualna_aukcja.cena:.2f} PLN", inline=True)
-    embed.set_footer(text=f"Czas trwania: {aktualna_aukcja.czas} sekund")
-    if aktualna_aukcja.obraz_url:
-        embed.set_image(url=aktualna_aukcja.obraz_url)
-
-    kanal = bot.get_channel(AUKCJE_KANAL_ID)
-    msg = await kanal.send(embed=embed, view=LicytacjaView())
-
-    zapisz_html(aktualna_aukcja)
-    zapisz_json(aktualna_aukcja)
-
-    await asyncio.sleep(aktualna_aukcja.czas)
-    await zakoncz_aukcje(msg)
+    await start_next_auction()
 
 
 def zapisz_html(aukcja: Aukcja, template_path: str = "templates/auction_template.html"):
@@ -231,6 +288,30 @@ async def zakoncz_aukcje(msg):
         )
         await send_order_dm(aktualna_aukcja)
         aktualna_aukcja = None
+        await update_panel_embed()
+
+
+class PanelView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label='Następna karta', style=discord.ButtonStyle.primary)
+    async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != ADMIN_ID:
+            await interaction.response.send_message('Brak uprawnień.', ephemeral=True)
+            return
+        await start_next_auction(interaction)
+
+    @discord.ui.button(label='⏸ Pauza', style=discord.ButtonStyle.secondary)
+    async def pause(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != ADMIN_ID:
+            await interaction.response.send_message('Brak uprawnień.', ephemeral=True)
+            return
+        global paused
+        paused = not paused
+        button.label = '▶ Wznów' if paused else '⏸ Pauza'
+        await interaction.response.defer()
+        await update_panel_embed()
 
 class LicytacjaView(discord.ui.View):
     def __init__(self):
@@ -246,6 +327,7 @@ class LicytacjaView(discord.ui.View):
         zapisz_html(aktualna_aukcja)
         zapisz_json(aktualna_aukcja)
         await interaction.response.send_message(f"✅ Twoja oferta: {aktualna_aukcja.cena:.2f} PLN", ephemeral=True)
+        await update_panel_embed()
 
 
 class OrderView(discord.ui.View):
@@ -287,6 +369,7 @@ async def check_youtube_chat():
                 aktualna_aukcja.licytuj(user)
                 zapisz_html(aktualna_aukcja)
                 zapisz_json(aktualna_aukcja)
+                await update_panel_embed()
     except Exception:
         pass
 
