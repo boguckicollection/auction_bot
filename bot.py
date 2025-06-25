@@ -137,6 +137,8 @@ async def start_next_auction(interaction: discord.Interaction | None = None):
     embed.set_footer(text=f"Czas trwania: {aktualna_aukcja.czas} sekund")
     if aktualna_aukcja.obraz_url:
         embed.set_image(url=aktualna_aukcja.obraz_url)
+    else:
+        embed.add_field(name="Obraz", value="Brak zdjęcia karty", inline=False)
 
     channel = bot.get_channel(AUKCJE_KANAL_ID)
     msg = await channel.send(embed=embed, view=LicytacjaView())
@@ -177,6 +179,7 @@ class Aukcja:
 @bot.command()
 async def zaladuj(ctx):
     if ctx.author.id != ADMIN_ID:
+        await ctx.send('Brak uprawnień.')
         return
     global aukcje_kolejka
     aukcje_kolejka.clear()
@@ -192,6 +195,7 @@ async def zaladuj(ctx):
 @bot.command()
 async def start_aukcja(ctx):
     if ctx.author.id != ADMIN_ID:
+        await ctx.send('Brak uprawnień.')
         return
     await start_next_auction()
 
@@ -287,7 +291,9 @@ async def notify_order_channel(aukcja: Aukcja):
         color=0x00FF00,
     )
     if aukcja.obraz_url:
-        embed.set_thumbnail(url=aukcja.obraz_url)
+        embed.set_image(url=aukcja.obraz_url)
+    else:
+        embed.add_field(name="Obraz", value="Brak zdjęcia karty", inline=False)
     embed.add_field(name="Cena", value=f"{aukcja.cena:.2f} PLN", inline=False)
     if aukcja.payment_method:
         embed.add_field(name="Metoda płatności", value=aukcja.payment_method, inline=False)
