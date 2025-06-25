@@ -33,12 +33,13 @@ pending_orders = {}
 
 def fetch_card_image(nazwa: str, numer: str) -> str | None:
     """Return card image URL from PokemonTCG API if available."""
-    query = f"https://api.pokemontcg.io/v2/cards?q=name:%22{nazwa}%22%20number:{numer}"
+    url = "https://api.pokemontcg.io/v2/cards"
+    params = {"q": f'name:"{nazwa}" number:{numer}', "pageSize": 1}
     headers = {}
     if POKEMONTCG_API_TOKEN:
         headers["X-Api-Key"] = POKEMONTCG_API_TOKEN
     try:
-        resp = requests.get(query, headers=headers, timeout=5)
+        resp = requests.get(url, params=params, headers=headers, timeout=5)
         if resp.status_code == 200:
             data = resp.json()
             cards = data.get("data")
