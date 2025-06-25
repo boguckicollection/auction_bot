@@ -85,10 +85,15 @@ async def update_panel_embed():
     ) or "Brak"
     embed.add_field(name="W kolejce", value=queue_preview, inline=False)
     if aktualna_aukcja:
-        info = f"{aktualna_aukcja.nazwa} ({aktualna_aukcja.numer})\n" \
-            f"Cena: {aktualna_aukcja.cena:.2f} PLN"
+        info = f"{aktualna_aukcja.nazwa} ({aktualna_aukcja.numer})\nCena: {aktualna_aukcja.cena:.2f} PLN"
         if aktualna_aukcja.zwyciezca:
             info += f"\nProwadzi: {aktualna_aukcja.zwyciezca}"
+        if aktualna_aukcja.start_time:
+            koniec = aktualna_aukcja.start_time + datetime.timedelta(seconds=aktualna_aukcja.czas)
+            pozostalo = int((koniec - datetime.datetime.utcnow()).total_seconds())
+            if pozostalo < 0:
+                pozostalo = 0
+            info += f"\nPozostało: {pozostalo}s"
         embed.add_field(name="Aktualna aukcja", value=info, inline=False)
     view = PanelView()
     global seller_panel_msg
@@ -199,6 +204,7 @@ async def start_next_auction(interaction: discord.Interaction | None = None):
 async def on_ready():
     if youtube:
         check_youtube_chat.start()
+    refresh_panel.start()
 
 class Aukcja:
     def __init__(self, nazwa, numer, opis, cena_start, przebicie, czas):
@@ -421,6 +427,10 @@ class OrderView(discord.ui.View):
     async def przelew(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self._process(interaction, "PRZELEW")
 
+
+@tasks.loop(seconds=1)
+async def refresh_panel():
+    await update_panel_embed()
 
 @tasks.loop(seconds=5)
 async def check_youtube_chat():
