@@ -17,6 +17,7 @@ DISCORD_GUILD_ID=your_server_id
 AUKCJE_KANAL_ID=channel_id_for_auctions
 ADMIN_ID=discord_user_id_allowed_to_manage
 ORDER_CHANNEL_ID=channel_id_for_orders
+SELLER_CHANNEL_ID=private_channel_for_seller
 YOUTUBE_API_KEY=optional_youtube_api_key
 LIVE_CHAT_ID=optional_live_chat_id
 POKEMONTCG_API_TOKEN=optional_pokemon_tcg_api_token
@@ -49,8 +50,8 @@ python bot.py
 
 ## Using the bot
 
-1. Run `/zaladuj` to load auctions from `aukcje.csv`.
-2. Run `/start_aukcja` to begin the next auction. The bot posts an embed with item details and a **🔼 LICYTUJ** button.
+1. Run `/zaladuj` to load auctions from `aukcje.csv`. The bot posts a control panel on the channel specified in `SELLER_CHANNEL_ID` where you can start or pause auctions.
+2. Use the **Następna karta** button on the panel to begin the next auction. The bot posts an embed with item details on the bidding channel and a **🔼 LICYTUJ** button.
 3. Participants click the button to increase the price by the configured increment. Messages containing `!bit` in the configured YouTube live chat also count as bids if YouTube integration is enabled.
 4. When the timer expires the auction ends. The winner and final price are announced and saved to:
    - `aktualna_aukcja.html` – summary page generated from `templates/auction_template.html`
