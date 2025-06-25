@@ -9,8 +9,10 @@ from dotenv import load_dotenv
 from googleapiclient.discovery import build
 import requests
 from string import Template
+import logging
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
@@ -57,11 +59,11 @@ def fetch_card_assets(nazwa: str, numer: str) -> tuple[str | None, str | None]:
     # First try to fetch by card ID (e.g. sv2-10)
     try:
         resp = requests.get(f"{base}/{numer}", headers=headers, timeout=5)
-        if resp.status_code == 200:
-            card = resp.json().get("data")
-            return _parse(card)
-    except Exception:
-        pass
+        resp.raise_for_status()
+        card = resp.json().get("data")
+        return _parse(card)
+    except Exception as e:
+        logging.warning("Direct lookup for %s failed: %s", numer, e)
 
     # Fallback to search query if direct lookup failed
     try:
@@ -75,13 +77,20 @@ def fetch_card_assets(nazwa: str, numer: str) -> tuple[str | None, str | None]:
         query = " ".join(parts)
         params = {"q": query, "pageSize": 1}
         resp = requests.get(base, params=params, headers=headers, timeout=5)
-        if resp.status_code == 200:
-            cards = resp.json().get("data")
-            if cards:
-                return _parse(cards[0])
-    except Exception:
-        pass
+        resp.raise_for_status()
+        cards = resp.json().get("data")
+        if cards:
+            return _parse(cards[0])
+        logging.warning("No results for query: %s", query)
+    except Exception as e:
+        logging.warning("Search request for %s failed: %s", numer, e)
+    logging.warning("Card image for %s (%s) not found", nazwa, numer)
     return None, None
+
+
+async def fetch_card_assets_async(nazwa: str, numer: str) -> tuple[str | None, str | None]:
+    """Asynchronously fetch card assets without blocking the event loop."""
+    return await asyncio.to_thread(fetch_card_assets, nazwa, numer)
 
 
 async def update_panel_embed():
@@ -233,9 +242,18 @@ async def start_next_auction(interaction: discord.Interaction | None = None):
 
     aktualna_aukcja = aukcje_kolejka.pop(0)
     aktualna_aukcja.start_time = datetime.datetime.utcnow()
-    img, logo = fetch_card_assets(aktualna_aukcja.nazwa, aktualna_aukcja.numer)
+    img, logo = await fetch_card_assets_async(
+        aktualna_aukcja.nazwa, aktualna_aukcja.numer
+    )
     aktualna_aukcja.obraz_url = img
     aktualna_aukcja.logo_url = logo
+    logging.info(
+        "Fetched assets for %s (%s): image=%s logo=%s",
+        aktualna_aukcja.nazwa,
+        aktualna_aukcja.numer,
+        bool(img),
+        bool(logo),
+    )
 
     embed = discord.Embed(
         title=f"🏁 **{aktualna_aukcja.nazwa}** ({aktualna_aukcja.numer})",
