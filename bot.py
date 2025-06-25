@@ -456,6 +456,14 @@ async def zakoncz_aukcje(msg):
         except discord.NotFound:
             pass
 
+        # finalize user bid messages
+        for m in list(user_bid_messages.values()):
+            try:
+                await m.edit(content=f"Aukcja zakończona. Cena końcowa: {aktualna_aukcja.cena:.2f} PLN")
+            except (discord.NotFound, discord.HTTPException):
+                pass
+        user_bid_messages.clear()
+
         aktualna_aukcja = None
         auction_msg = None
         await update_panel_embed()
@@ -493,6 +501,11 @@ class LicytacjaView(discord.ui.View):
         if not aktualna_aukcja:
             await interaction.response.send_message("Brak aktywnej aukcji.", ephemeral=True)
             return
+        if aktualna_aukcja.start_time:
+            end_time = aktualna_aukcja.start_time + datetime.timedelta(seconds=aktualna_aukcja.czas)
+            if datetime.datetime.utcnow() >= end_time:
+                await interaction.response.send_message("Aukcja już zakończona.", ephemeral=True)
+                return
         aktualna_aukcja.licytuj(interaction.user)
         zapisz_html(aktualna_aukcja)
         zapisz_json(aktualna_aukcja)
