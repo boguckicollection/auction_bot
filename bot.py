@@ -59,8 +59,9 @@ class Aukcja:
         self.nazwa = nazwa
         self.numer = numer
         self.opis = opis
-        self.cena = float(cena_start)
-        self.przebicie = float(przebicie)
+        # Support both comma and dot as decimal separators
+        self.cena = float(str(cena_start).replace(",", "."))
+        self.przebicie = float(str(przebicie).replace(",", "."))
         self.czas = int(czas)
         self.historia = []
         self.zwyciezca = None
