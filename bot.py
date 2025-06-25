@@ -37,6 +37,7 @@ pending_orders = {}
 seller_panel_msg: discord.Message | None = None
 auction_msg: discord.Message | None = None
 user_bid_messages: dict[int, discord.Message] = {}
+announcement_msg: discord.Message | None = None
 paused = False
 
 
@@ -127,12 +128,12 @@ async def update_panel_embed():
 
 
 async def update_announcement_embed():
-    """Embed dla sprzedawcy na kanale ogłoszeń"""
+    """Uaktualnij lub utwórz embed z ogłoszeniem aukcji."""
     channel = bot.get_channel(OGLOSZENIA_KANAL_ID)
     if channel is None:
         return
 
-    embed = discord.Embed(title="🔔 Ogłoszenie aukcji", color=0x00bfff)
+    embed = discord.Embed(title="🔔 Ogłoszenie aukcji", color=0x00BFFF)
 
     if aktualna_aukcja:
         embed.add_field(
@@ -161,11 +162,57 @@ async def update_announcement_embed():
 
         if aktualna_aukcja.obraz_url:
             embed.set_thumbnail(url=aktualna_aukcja.obraz_url)
+    else:
+        embed.add_field(name="Status", value="Brak aktywnej aukcji", inline=False)
 
     kolejka = "\n".join(f"{a.nazwa} ({a.numer})" for a in aukcje_kolejka[:5]) or "Brak"
     embed.add_field(name="W kolejce", value=kolejka, inline=False)
 
-    await channel.send(embed=embed)
+    view = AnnouncementView()
+    global announcement_msg
+    if announcement_msg:
+        try:
+            await announcement_msg.edit(embed=embed, view=view)
+        except discord.NotFound:
+            announcement_msg = await channel.send(embed=embed, view=view)
+    else:
+        announcement_msg = await channel.send(embed=embed, view=view)
+
+async def announce_winner(aukcja: 'Aukcja'):
+    """Wyświetl w ogłoszeniach wynik zakończonej aukcji."""
+    channel = bot.get_channel(OGLOSZENIA_KANAL_ID)
+    if channel is None:
+        return
+    embed = discord.Embed(
+        title="✅ Aukcja zakończona",
+        color=0xFF0000,
+    )
+    embed.add_field(
+        name="Karta",
+        value=f"{aukcja.nazwa} ({aukcja.numer})",
+        inline=False,
+    )
+    embed.add_field(
+        name="Cena końcowa",
+        value=f"{aukcja.cena:.2f} PLN",
+        inline=True,
+    )
+    embed.add_field(
+        name="Zwycięzca",
+        value=str(aukcja.zwyciezca or 'Brak'),
+        inline=True,
+    )
+    if aukcja.obraz_url:
+        embed.set_thumbnail(url=aukcja.obraz_url)
+    view = AnnouncementView()
+    global announcement_msg
+    if announcement_msg:
+        try:
+            await announcement_msg.edit(embed=embed, view=view)
+        except discord.NotFound:
+            announcement_msg = await channel.send(embed=embed, view=view)
+    else:
+        announcement_msg = await channel.send(embed=embed, view=view)
 
 
 
@@ -216,9 +263,11 @@ async def update_auction_embed():
 
 async def countdown_task(message: discord.Message, seconds: int):
     await update_auction_embed()
+    await update_announcement_embed()
     for _ in range(seconds):
         await asyncio.sleep(1)
         await update_auction_embed()
+        await update_announcement_embed()
     await zakoncz_aukcje(message)
     await update_panel_embed()
 
@@ -474,6 +523,8 @@ async def zakoncz_aukcje(msg):
         except discord.NotFound:
             pass
 
+        await announce_winner(aktualna_aukcja)
+
         # finalize user bid messages
         for m in list(user_bid_messages.values()):
             try:
@@ -509,6 +560,17 @@ class PanelView(discord.ui.View):
         await interaction.response.defer()
         await update_panel_embed()
 
+class AnnouncementView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label='Następna karta', style=discord.ButtonStyle.primary)
+    async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != ADMIN_ID:
+            await interaction.response.send_message('Brak uprawnień.', ephemeral=True)
+            return
+        await start_next_auction(interaction)
+
 class LicytacjaView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -543,6 +605,7 @@ class LicytacjaView(discord.ui.View):
                 pass
         await update_panel_embed()
         await update_auction_embed()
+        await update_announcement_embed()
 
 
 class OrderView(discord.ui.View):
@@ -590,6 +653,7 @@ async def check_youtube_chat():
                 zapisz_json(aktualna_aukcja)
                 await update_panel_embed()
                 await update_auction_embed()
+                await update_announcement_embed()
     except Exception:
         pass
 
