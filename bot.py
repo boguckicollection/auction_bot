@@ -20,6 +20,7 @@ ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 ORDER_CHANNEL_ID = int(os.getenv("ORDER_CHANNEL_ID", "0"))
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 LIVE_CHAT_ID = os.getenv("LIVE_CHAT_ID")
+POKEMONTCG_API_TOKEN = os.getenv("POKEMONTCG_API_TOKEN")
 
 bot = commands.Bot(command_prefix='/', intents=discord.Intents.all())
 
@@ -33,8 +34,11 @@ pending_orders = {}
 def fetch_card_image(nazwa: str, numer: str) -> str | None:
     """Return card image URL from PokemonTCG API if available."""
     query = f"https://api.pokemontcg.io/v2/cards?q=name:%22{nazwa}%22%20number:{numer}"
+    headers = {}
+    if POKEMONTCG_API_TOKEN:
+        headers["X-Api-Key"] = POKEMONTCG_API_TOKEN
     try:
-        resp = requests.get(query, timeout=5)
+        resp = requests.get(query, headers=headers, timeout=5)
         if resp.status_code == 200:
             data = resp.json()
             cards = data.get("data")
@@ -142,7 +146,7 @@ def zapisz_json(aukcja: Aukcja):
         "ostateczna_cena": aukcja.cena,
         "zwyciezca": str(aukcja.zwyciezca),
         "historia": aukcja.historia,
-        "start_time": aukcja.start_time.isoformat() if aukcja.start_time else None,
+        "start_time": (aukcja.start_time.isoformat() + "Z") if aukcja.start_time else None,
         "czas": aukcja.czas,
         "obraz": aukcja.obraz_url,
     }
