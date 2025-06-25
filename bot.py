@@ -37,21 +37,28 @@ auction_msg: discord.Message | None = None
 paused = False
 
 
-def fetch_card_image(nazwa: str, numer: str) -> str | None:
-    """Return card image URL from PokemonTCG API if available."""
+def fetch_card_assets(nazwa: str, numer: str) -> tuple[str | None, str | None]:
+    """Return card and set logo image URLs from PokemonTCG API if available."""
     base = "https://api.pokemontcg.io/v2/cards"
     numer = numer.strip().lower()
     headers = {}
     if POKEMONTCG_API_TOKEN:
         headers["X-Api-Key"] = POKEMONTCG_API_TOKEN
 
+    def _parse(card):
+        if card:
+            return (
+                card.get("images", {}).get("large"),
+                card.get("set", {}).get("images", {}).get("logo"),
+            )
+        return None, None
+
     # First try to fetch by card ID (e.g. sv2-10)
     try:
         resp = requests.get(f"{base}/{numer}", headers=headers, timeout=5)
         if resp.status_code == 200:
             card = resp.json().get("data")
-            if card:
-                return card.get("images", {}).get("large")
+            return _parse(card)
     except Exception:
         pass
 
@@ -70,10 +77,10 @@ def fetch_card_image(nazwa: str, numer: str) -> str | None:
         if resp.status_code == 200:
             cards = resp.json().get("data")
             if cards:
-                return cards[0].get("images", {}).get("large")
+                return _parse(cards[0])
     except Exception:
         pass
-    return None
+    return None, None
 
 
 async def update_panel_embed():
@@ -156,18 +163,28 @@ async def update_auction_embed():
     if not aktualna_aukcja or not auction_msg:
         return
     embed = discord.Embed(
-        title=f"Aukcja: {aktualna_aukcja.nazwa} ({aktualna_aukcja.numer})",
+        title=f"🔥 **{aktualna_aukcja.nazwa}** ({aktualna_aukcja.numer})",
         description=aktualna_aukcja.opis,
-        color=0xffd700,
+        color=0xff9900,
     )
-    embed.add_field(name="Cena", value=f"{aktualna_aukcja.cena:.2f} PLN", inline=True)
-    embed.add_field(name="Prowadzi", value=str(aktualna_aukcja.zwyciezca or 'Brak'), inline=True)
+    embed.add_field(
+        name="💰 **Cena**",
+        value=f"**{aktualna_aukcja.cena:.2f} PLN**",
+        inline=True,
+    )
+    embed.add_field(
+        name="🏆 **Prowadzi**",
+        value=f"**{aktualna_aukcja.zwyciezca or 'Brak'}**",
+        inline=True,
+    )
     if aktualna_aukcja.start_time:
         end_time = aktualna_aukcja.start_time + datetime.timedelta(seconds=aktualna_aukcja.czas)
         remaining = int((end_time - datetime.datetime.utcnow()).total_seconds())
         if remaining < 0:
             remaining = 0
-        embed.set_footer(text=f"Pozosta\u0142o: {remaining}s")
+        embed.set_footer(text=f"⏳ Pozosta\u0142o: {remaining}s")
+    if aktualna_aukcja.logo_url:
+        embed.set_thumbnail(url=aktualna_aukcja.logo_url)
     if aktualna_aukcja.obraz_url:
         embed.set_image(url=aktualna_aukcja.obraz_url)
     await auction_msg.edit(embed=embed)
@@ -201,16 +218,20 @@ async def start_next_auction(interaction: discord.Interaction | None = None):
 
     aktualna_aukcja = aukcje_kolejka.pop(0)
     aktualna_aukcja.start_time = datetime.datetime.utcnow()
-    aktualna_aukcja.obraz_url = fetch_card_image(aktualna_aukcja.nazwa, aktualna_aukcja.numer)
+    img, logo = fetch_card_assets(aktualna_aukcja.nazwa, aktualna_aukcja.numer)
+    aktualna_aukcja.obraz_url = img
+    aktualna_aukcja.logo_url = logo
 
     embed = discord.Embed(
-        title=f"Aukcja: {aktualna_aukcja.nazwa} ({aktualna_aukcja.numer})",
+        title=f"🏁 **{aktualna_aukcja.nazwa}** ({aktualna_aukcja.numer})",
         description=aktualna_aukcja.opis,
-        color=0xffd700,
+        color=0x00ff90,
     )
-    embed.add_field(name="Numer", value=aktualna_aukcja.numer, inline=True)
-    embed.add_field(name="Cena startowa", value=f"{aktualna_aukcja.cena:.2f} PLN", inline=True)
-    embed.set_footer(text=f"Czas trwania: {aktualna_aukcja.czas} sekund")
+    embed.add_field(name="Numer", value=f"**{aktualna_aukcja.numer}**", inline=True)
+    embed.add_field(name="Cena startowa", value=f"**{aktualna_aukcja.cena:.2f} PLN**", inline=True)
+    embed.set_footer(text=f"⏳ Czas trwania: {aktualna_aukcja.czas} s")
+    if aktualna_aukcja.logo_url:
+        embed.set_thumbnail(url=aktualna_aukcja.logo_url)
     if aktualna_aukcja.obraz_url:
         embed.set_image(url=aktualna_aukcja.obraz_url)
     else:
@@ -252,6 +273,7 @@ class Aukcja:
         self.order_number = None
         self.payment_method = None
         self.obraz_url = None
+        self.logo_url = None
 
     def licytuj(self, user):
         self.cena += self.przebicie
@@ -315,6 +337,7 @@ def zapisz_json(aukcja: Aukcja):
         "start_time": (aukcja.start_time.isoformat() + "Z") if aukcja.start_time else None,
         "czas": aukcja.czas,
         "obraz": aukcja.obraz_url,
+        "logo": aukcja.logo_url,
     }
     with open('aktualna_aukcja.json', 'w', encoding='utf-8') as f:
         json.dump(dane, f, ensure_ascii=False, indent=2)
@@ -393,21 +416,24 @@ async def zakoncz_aukcje(msg):
         zapisz_json(aktualna_aukcja)
         if aktualna_aukcja.zwyciezca:
             zapisz_zamowienie(aktualna_aukcja)
-            await msg.reply(
-                f"🔔 Aukcja zako\u0144czona! Wygra\u0142 **{aktualna_aukcja.zwyciezca}** za **{aktualna_aukcja.cena:.2f} PLN**"
-            )
             await send_order_dm(aktualna_aukcja)
-        else:
-            await msg.reply(
-                f"🔔 Aukcja zako\u0144czona bez zwyci\u0119zcy - {aktualna_aukcja.nazwa}"
-            )
 
         embed = discord.Embed(
-            title=f"Aukcja zako\u0144czona: {aktualna_aukcja.nazwa}",
+            title=f"✅ Aukcja zako\u0144czona: {aktualna_aukcja.nazwa}",
             color=0xff0000,
         )
-        embed.add_field(name="Cena ko\u0144cowa", value=f"{aktualna_aukcja.cena:.2f} PLN", inline=True)
-        embed.add_field(name="Zwyci\u0119zca", value=str(aktualna_aukcja.zwyciezca or 'Brak'), inline=True)
+        embed.add_field(
+            name="💵 Cena ko\u0144cowa",
+            value=f"**{aktualna_aukcja.cena:.2f} PLN**",
+            inline=True,
+        )
+        embed.add_field(
+            name="🏆 Zwyci\u0119zca",
+            value=f"**{aktualna_aukcja.zwyciezca or 'Brak'}**",
+            inline=True,
+        )
+        if aktualna_aukcja.logo_url:
+            embed.set_thumbnail(url=aktualna_aukcja.logo_url)
         if aktualna_aukcja.obraz_url:
             embed.set_image(url=aktualna_aukcja.obraz_url)
         try:
