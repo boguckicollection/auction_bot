@@ -5,7 +5,7 @@ This project contains a Discord bot for running live card auctions. Bids can be 
 ## Requirements
 
 - Python 3.10 or newer
-- The packages listed in `requirements.txt`
+- The packages listed in `requirements.txt` (now including `requests` for card images)
 
 ## Configuration
 

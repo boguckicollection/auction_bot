@@ -8,6 +8,8 @@ import json
 from typing import List
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
+import requests
+from string import Template
 
 load_dotenv()
 
@@ -28,6 +30,21 @@ yt_page_token = None
 pending_orders = {}
 
 
+def fetch_card_image(nazwa: str, numer: str) -> str | None:
+    """Return card image URL from PokemonTCG API if available."""
+    query = f"https://api.pokemontcg.io/v2/cards?q=name:%22{nazwa}%22%20number:{numer}"
+    try:
+        resp = requests.get(query, timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            cards = data.get("data")
+            if cards:
+                return cards[0].get("images", {}).get("large")
+    except Exception:
+        pass
+    return None
+
+
 @bot.event
 async def on_ready():
     if youtube:
@@ -46,6 +63,7 @@ class Aukcja:
         self.start_time = None
         self.order_number = None
         self.payment_method = None
+        self.obraz_url = None
 
     def licytuj(self, user):
         self.cena += self.przebicie
@@ -76,11 +94,14 @@ async def start_aukcja(ctx):
 
     aktualna_aukcja = aukcje_kolejka.pop(0)
     aktualna_aukcja.start_time = datetime.datetime.utcnow()
+    aktualna_aukcja.obraz_url = fetch_card_image(aktualna_aukcja.nazwa, aktualna_aukcja.numer)
 
-    embed = discord.Embed(title=f"Aukcja: {aktualna_aukcja.nazwa}", description=aktualna_aukcja.opis, color=0xffd700)
+    embed = discord.Embed(title=f"Aukcja: {aktualna_aukcja.nazwa} ({aktualna_aukcja.numer})", description=aktualna_aukcja.opis, color=0xffd700)
     embed.add_field(name="Numer", value=aktualna_aukcja.numer, inline=True)
     embed.add_field(name="Cena startowa", value=f"{aktualna_aukcja.cena:.2f} PLN", inline=True)
     embed.set_footer(text=f"Czas trwania: {aktualna_aukcja.czas} sekund")
+    if aktualna_aukcja.obraz_url:
+        embed.set_image(url=aktualna_aukcja.obraz_url)
 
     kanal = bot.get_channel(AUKCJE_KANAL_ID)
     msg = await kanal.send(embed=embed, view=LicytacjaView())
@@ -91,21 +112,23 @@ async def start_aukcja(ctx):
     await asyncio.sleep(aktualna_aukcja.czas)
     await zakoncz_aukcje(msg)
 
+
 def zapisz_html(aukcja: Aukcja, template_path: str = "templates/auction_template.html"):
     with open(template_path, encoding="utf-8") as f:
-        template = f.read()
+        template = Template(f.read())
 
     historia_html = "".join(
         f"<li>{u} - {c:.2f} PLN - {t}</li>" for u, c, t in aukcja.historia
     )
 
-    html = template.format(
+    html = template.safe_substitute(
         nazwa=aukcja.nazwa,
         numer=aukcja.numer,
         opis=aukcja.opis,
-        cena=aukcja.cena,
-        zwyciezca=aukcja.zwyciezca,
+        cena=f"{aukcja.cena:.2f}",
+        zwyciezca=aukcja.zwyciezca or "",
         historia=historia_html,
+        obraz=aukcja.obraz_url or "",
     )
 
     with open("aktualna_aukcja.html", "w", encoding="utf-8") as f:
@@ -120,7 +143,8 @@ def zapisz_json(aukcja: Aukcja):
         "zwyciezca": str(aukcja.zwyciezca),
         "historia": aukcja.historia,
         "start_time": aukcja.start_time.isoformat() if aukcja.start_time else None,
-        "czas": aukcja.czas
+        "czas": aukcja.czas,
+        "obraz": aukcja.obraz_url,
     }
     with open('aktualna_aukcja.json', 'w', encoding='utf-8') as f:
         json.dump(dane, f, ensure_ascii=False, indent=2)
@@ -163,6 +187,8 @@ async def send_order_dm(aukcja: Aukcja):
         "Wybierz metodę płatności i potwierdź zakup:"
     )
     try:
+        if aukcja.obraz_url:
+            await aukcja.zwyciezca.send(aukcja.obraz_url)
         await aukcja.zwyciezca.send(message, view=view)
         await aukcja.zwyciezca.send(f"Masz czas do {due_date}.")
     except discord.Forbidden:
@@ -177,6 +203,8 @@ async def notify_order_channel(aukcja: Aukcja):
         description=f"{aukcja.nazwa} ({aukcja.numer})",
         color=0x00FF00,
     )
+    if aukcja.obraz_url:
+        embed.set_thumbnail(url=aukcja.obraz_url)
     embed.add_field(name="Cena", value=f"{aukcja.cena:.2f} PLN", inline=False)
     if aukcja.payment_method:
         embed.add_field(name="Metoda płatności", value=aukcja.payment_method, inline=False)

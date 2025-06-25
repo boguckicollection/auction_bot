@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Licytacja - {nazwa}</title>
+    <title>Licytacja - ${nazwa}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -30,32 +30,31 @@
         li { margin-bottom:0.5em; }
         .new-bid { animation: fadeIn 0.5s ease-in; }
         @keyframes fadeIn { from{opacity:0; transform:translateY(-5px);} to{opacity:1; transform:translateY(0);} }
-        #countdown { font-size:2em; margin-bottom:1em; }
-        #countdown.red { color:red; }
-        #start-overlay {
-            position:fixed;top:0;left:0;right:0;bottom:0;
-            display:flex;flex-direction:column;align-items:center;justify-content:center;
-            backdrop-filter:blur(6px);background:rgba(0,0,0,0.7);
-            z-index:1000;
+        #countdown {
+            font-size:6em;
+            margin-bottom:1em;
+            animation:pulse 1s infinite;
         }
-        #start-count {font-size:5em;margin-top:1em;}
+        #countdown.red { color:red; }
+        @keyframes pulse {
+            0% { transform:scale(1); }
+            50% { transform:scale(1.1); }
+            100% { transform:scale(1); }
+        }
     </style>
 </head>
-<body>
-<div id="start-overlay">
-    <button id="start-btn">START</button>
-    <div id="start-count" style="display:none">5</div>
-</div>
+<body onload="startUpdates()">
 <div class="overlay">
     <div class="card" id="auction">
-        <h1 id="title">{nazwa} ({numer})</h1>
-        <p id="desc">{opis}</p>
+        <h1 id="title">${nazwa} (${numer})</h1>
+        <p id="desc">${opis}</p>
+        <img id="card-img" src="${obraz}" style="max-width:100%;display:none"/>
         <div id="countdown"></div>
-        <h2 id="price">{cena:.2f} PLN</h2>
+        <h2 id="price">${cena} PLN</h2>
         <h3 id="winner" style="display:none"></h3>
         <h4>Historia licytacji:</h4>
         <ul id="history">
-            {historia}
+            ${historia}
         </ul>
     </div>
 </div>
@@ -74,6 +73,11 @@ function fetchData(){
         document.getElementById('desc').textContent = data.opis;
         document.getElementById('price').textContent = data.ostateczna_cena.toFixed(2) + ' PLN';
         const list = document.getElementById('history');
+        const img = document.getElementById('card-img');
+        if(data.obraz){
+            img.src = data.obraz;
+            img.style.display = 'block';
+        }
         if(data.historia){
             while(historyLength < data.historia.length){
                 const [u,c,t] = data.historia[historyLength];
@@ -117,22 +121,6 @@ function showWinner(data){
     document.getElementById('price').style.display='none';
     document.getElementById('history').style.display='none';
 }
-const btn = document.getElementById('start-btn');
-btn.onclick=function(){
-    let c = 5;
-    const cd=document.getElementById('start-count');
-    btn.style.display='none';
-    cd.style.display='block';
-    cd.textContent=c;
-    const iv=setInterval(()=>{
-        c--; cd.textContent=c;
-        if(c<=0){
-            clearInterval(iv);
-            document.getElementById('start-overlay').style.display='none';
-            startUpdates();
-        }
-    },1000);
-};
 </script>
 </body>
 </html>
