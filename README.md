@@ -33,6 +33,9 @@ Auctions are loaded from a CSV file named `aukcje.csv` with columns:
 nazwa_karty,numer_karty,opis,cena_początkowa,kwota_przebicia,czas_trwania
 ```
 
+Values in `cena_początkowa` and `kwota_przebicia` may use either `.` or `,` as
+the decimal separator and will be parsed accordingly.
+
 Use the `/zaladuj` command (available only to the admin) to read this file and queue the auctions.
 
 ## Running
