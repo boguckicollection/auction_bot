@@ -34,7 +34,7 @@
         .new-bid { animation: fadeIn 0.5s ease-in; }
         @keyframes fadeIn { from{opacity:0; transform:translateY(-5px);} to{opacity:1; transform:translateY(0);} }
         #countdown {
-            font-size:6em;
+            font-size:4em;
             margin-bottom:1em;
             animation:pulse 1s infinite;
             text-align:center;
@@ -47,7 +47,7 @@
         }
         #countdown.red { color:red; }
         #price {
-            font-size:3em;
+            font-size:6em;
             text-align:center;
             color:#00ff90;
             position:relative;
@@ -77,8 +77,8 @@
         <h1 id="title">${nazwa} (${numer})</h1>
         <p id="desc">${opis}</p>
         <img id="card-img" src="${obraz}" style="max-width:100%;display:none"/>
-        <div id="countdown"></div>
         <h2 id="price">${cena} PLN</h2>
+        <div id="countdown"></div>
         <h3 id="winner" style="display:none"></h3>
         <h4>Historia licytacji:</h4>
         <ul id="history">
