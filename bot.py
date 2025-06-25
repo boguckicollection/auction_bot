@@ -85,6 +85,9 @@ async def start_aukcja(ctx):
     kanal = bot.get_channel(AUKCJE_KANAL_ID)
     msg = await kanal.send(embed=embed, view=LicytacjaView())
 
+    zapisz_html(aktualna_aukcja)
+    zapisz_json(aktualna_aukcja)
+
     await asyncio.sleep(aktualna_aukcja.czas)
     await zakoncz_aukcje(msg)
 
@@ -116,7 +119,8 @@ def zapisz_json(aukcja: Aukcja):
         "ostateczna_cena": aukcja.cena,
         "zwyciezca": str(aukcja.zwyciezca),
         "historia": aukcja.historia,
-        "start_time": aukcja.start_time.isoformat() if aukcja.start_time else None
+        "start_time": aukcja.start_time.isoformat() if aukcja.start_time else None,
+        "czas": aukcja.czas
     }
     with open('aktualna_aukcja.json', 'w', encoding='utf-8') as f:
         json.dump(dane, f, ensure_ascii=False, indent=2)
@@ -205,6 +209,8 @@ class LicytacjaView(discord.ui.View):
             await interaction.response.send_message("Brak aktywnej aukcji.", ephemeral=True)
             return
         aktualna_aukcja.licytuj(interaction.user)
+        zapisz_html(aktualna_aukcja)
+        zapisz_json(aktualna_aukcja)
         await interaction.response.send_message(f"✅ Twoja oferta: {aktualna_aukcja.cena:.2f} PLN", ephemeral=True)
 
 
@@ -245,6 +251,8 @@ async def check_youtube_chat():
             if "!bit" in msg_text:
                 user = item["authorDetails"]["displayName"]
                 aktualna_aukcja.licytuj(user)
+                zapisz_html(aktualna_aukcja)
+                zapisz_json(aktualna_aukcja)
     except Exception:
         pass
 

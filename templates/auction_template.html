@@ -1,25 +1,138 @@
+<!DOCTYPE html>
 <html>
 <head>
-    <meta charset='utf-8'>
+    <meta charset="utf-8">
     <title>Licytacja - {nazwa}</title>
     <style>
-        body {{ font-family: Arial, sans-serif; background: #1e1e2f; color: white; padding: 2em; }}
-        .card {{ background: #2e2e3f; padding: 1em; border-radius: 10px; max-width: 600px; margin: auto; box-shadow: 0 0 20px rgba(255,255,255,0.1); }}
-        h1, h2, h3 {{ color: #ffd700; }}
-        ul {{ padding-left: 1em; }}
-        li {{ margin-bottom: 0.5em; }}
+        body {
+            font-family: Arial, sans-serif;
+            margin:0;
+            background:url('https://source.unsplash.com/random/1920x1080?texture') no-repeat center center fixed;
+            background-size:cover;
+            color:white;
+        }
+        .overlay {
+            backdrop-filter: blur(8px);
+            background: rgba(0,0,0,0.6);
+            min-height:100vh;
+            padding:2em;
+        }
+        .card {
+            background: rgba(46,46,63,0.8);
+            padding:1em;
+            border-radius:10px;
+            max-width:600px;
+            margin:auto;
+            box-shadow:0 0 20px rgba(255,255,255,0.1);
+        }
+        h1,h2,h3 { color:#ffd700; margin-top:0; }
+        ul { padding-left:1em; list-style:none; }
+        li { margin-bottom:0.5em; }
+        .new-bid { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from{opacity:0; transform:translateY(-5px);} to{opacity:1; transform:translateY(0);} }
+        #countdown { font-size:2em; margin-bottom:1em; }
+        #countdown.red { color:red; }
+        #start-overlay {
+            position:fixed;top:0;left:0;right:0;bottom:0;
+            display:flex;flex-direction:column;align-items:center;justify-content:center;
+            backdrop-filter:blur(6px);background:rgba(0,0,0,0.7);
+            z-index:1000;
+        }
+        #start-count {font-size:5em;margin-top:1em;}
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>{nazwa} ({numer})</h1>
-        <p>{opis}</p>
-        <h2>Ostateczna cena: {cena:.2f} PLN</h2>
-        <h3>Zwycięzca: {zwyciezca}</h3>
+<div id="start-overlay">
+    <button id="start-btn">START</button>
+    <div id="start-count" style="display:none">5</div>
+</div>
+<div class="overlay">
+    <div class="card" id="auction">
+        <h1 id="title">{nazwa} ({numer})</h1>
+        <p id="desc">{opis}</p>
+        <div id="countdown"></div>
+        <h2 id="price">{cena:.2f} PLN</h2>
+        <h3 id="winner" style="display:none"></h3>
         <h4>Historia licytacji:</h4>
-        <ul>
+        <ul id="history">
             {historia}
         </ul>
     </div>
+</div>
+<script>
+let historyLength = document.querySelectorAll('#history li').length;
+let started = false;
+function startUpdates(){
+    started = true;
+    fetchData();
+    setInterval(fetchData,3000);
+    setInterval(updateCountdown,1000);
+}
+function fetchData(){
+    fetch('aktualna_aukcja.json',{cache:'no-cache'}).then(r=>r.json()).then(data=>{
+        document.getElementById('title').textContent = data.nazwa + ' (' + data.numer + ')';
+        document.getElementById('desc').textContent = data.opis;
+        document.getElementById('price').textContent = data.ostateczna_cena.toFixed(2) + ' PLN';
+        const list = document.getElementById('history');
+        if(data.historia){
+            while(historyLength < data.historia.length){
+                const [u,c,t] = data.historia[historyLength];
+                const li = document.createElement('li');
+                li.textContent = `${u} - ${c.toFixed(2)} PLN - ${t}`;
+                li.className = 'new-bid';
+                list.appendChild(li);
+                historyLength++;
+            }
+        }
+        auctionData = data;
+    }).catch(()=>{});
+}
+let end = null;
+let auctionData = null;
+function updateCountdown(){
+    if(!started) return;
+    if(!end){
+        fetch('aktualna_aukcja.json',{cache:'no-cache'}).then(r=>r.json()).then(d=>{
+            if(d.start_time) end = new Date(Date.parse(d.start_time) + d.czas*1000);
+        });
+        return;
+    }
+    const now = new Date();
+    const diff = Math.floor((end - now)/1000);
+    const div = document.getElementById('countdown');
+    if(diff <= 10) div.classList.add('red');
+    if(diff <= 0){
+        div.textContent = 'Koniec';
+        if(auctionData && auctionData.zwyciezca){
+            showWinner(auctionData);
+        }
+    }else{
+        div.textContent = diff + ' s';
+    }
+}
+function showWinner(data){
+    document.getElementById('winner').style.display='block';
+    document.getElementById('winner').textContent = 'Zwycięzca: ' + data.zwyciezca + ' - ' + data.nazwa;
+    document.getElementById('desc').style.display='none';
+    document.getElementById('price').style.display='none';
+    document.getElementById('history').style.display='none';
+}
+const btn = document.getElementById('start-btn');
+btn.onclick=function(){
+    let c = 5;
+    const cd=document.getElementById('start-count');
+    btn.style.display='none';
+    cd.style.display='block';
+    cd.textContent=c;
+    const iv=setInterval(()=>{
+        c--; cd.textContent=c;
+        if(c<=0){
+            clearInterval(iv);
+            document.getElementById('start-overlay').style.display='none';
+            startUpdates();
+        }
+    },1000);
+};
+</script>
 </body>
 </html>
