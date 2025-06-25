@@ -19,9 +19,11 @@ ADMIN_ID=discord_user_id_allowed_to_manage
 ORDER_CHANNEL_ID=channel_id_for_orders
 YOUTUBE_API_KEY=optional_youtube_api_key
 LIVE_CHAT_ID=optional_live_chat_id
+POKEMONTCG_API_TOKEN=optional_pokemon_tcg_api_token
 ```
 
 `YOUTUBE_API_KEY` and `LIVE_CHAT_ID` enable bidding from YouTube chat. Without them the bot works only on Discord.
+`POKEMONTCG_API_TOKEN` is optional but allows authenticated access to the PokemonTCG API when fetching card images.
 
 ## Loading auctions
 

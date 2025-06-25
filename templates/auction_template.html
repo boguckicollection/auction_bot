@@ -5,7 +5,7 @@
     <title>Licytacja - ${nazwa}</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Trebuchet MS', Helvetica, sans-serif;
             margin:0;
             background:url('https://source.unsplash.com/random/1920x1080?texture') no-repeat center center fixed;
             background-size:cover;
@@ -34,6 +34,13 @@
             font-size:6em;
             margin-bottom:1em;
             animation:pulse 1s infinite;
+            text-align:center;
+            font-weight:bold;
+        }
+        #winner {
+            font-size:2em;
+            font-weight:bold;
+            text-align:center;
         }
         #countdown.red { color:red; }
         @keyframes pulse {
@@ -106,7 +113,7 @@ function updateCountdown(){
     const div = document.getElementById('countdown');
     if(diff <= 10) div.classList.add('red');
     if(diff <= 0){
-        div.textContent = 'Koniec';
+        div.textContent = 'KONIEC';
         if(auctionData && auctionData.zwyciezca){
             showWinner(auctionData);
         }
