@@ -37,7 +37,9 @@ paused = False
 def fetch_card_image(nazwa: str, numer: str) -> str | None:
     """Return card image URL from PokemonTCG API if available."""
     url = "https://api.pokemontcg.io/v2/cards"
-    params = {"q": f'name:"{nazwa}" number:{numer}', "pageSize": 1}
+    numer = numer.strip()
+    query = f'name:"{nazwa}" number:"{numer}"'
+    params = {"q": query, "pageSize": 1}
     headers = {}
     if POKEMONTCG_API_TOKEN:
         headers["X-Api-Key"] = POKEMONTCG_API_TOKEN
