@@ -5,7 +5,6 @@ import csv
 import asyncio
 import datetime
 import json
-from typing import List
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
 import requests
@@ -14,6 +13,8 @@ from string import Template
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
+if not TOKEN:
+    raise RuntimeError("DISCORD_TOKEN is not set")
 GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))
 AUKCJE_KANAL_ID = int(os.getenv("AUKCJE_KANAL_ID", "0"))
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
