@@ -55,8 +55,8 @@ python bot.py
 2. Use the **Następna karta** button on the panel to begin the next auction. The bot posts an embed with item details on the bidding channel and a **🔼 LICYTUJ** button.
 3. Participants click the button to increase the price by the configured increment. Messages containing `!bit` in the configured YouTube live chat also count as bids if YouTube integration is enabled.
 4. When the timer expires the auction ends. The winner and final price are announced and saved to:
-   - `aktualna_aukcja.html` – summary page generated from `templates/auction_template.html`
-   - `aktualna_aukcja.json` – machine‑readable auction data
+   - `templates/aktualna_aukcja.html` – summary page generated from `templates/auction_template.html`
+   - `templates/aktualna_aukcja.json` – machine‑readable auction data
    - `orders/` – text file with basic order information
 5. Po zakończeniu aukcji zwycięzca otrzymuje prywatną wiadomość z gratulacjami
    i instrukcją wyboru metody płatności. W przyszłości wiadomość będzie zawierać
