@@ -475,10 +475,10 @@ async def send_order_dm(aukcja: Aukcja):
     due_date = (datetime.datetime.utcnow() + datetime.timedelta(days=2)).strftime('%d %B %Y %H:%M')
     view = OrderView(aukcja)
     message = (
-        f"Gratulacje! Wygrałeś licytację karty {aukcja.nazwa} {aukcja.numer} za {aukcja.cena:.2f} PLN.\n"
+        f"🎉 Gratulacje! Wygrałeś aukcję: **{aukcja.nazwa} ({aukcja.numer})** za **{aukcja.cena:.2f} PLN**.\n"
         f"Koszt wysyłki: 10,00 PLN (jeśli to Twoja pierwsza karta).\n"
         "Wybierz metodę płatności i potwierdź zakup.\n"
-        "W przyszłości pojawi się tutaj link do strony z płatnościami i wysyłką."
+        "Aby dokończyć zamówienie wejdź na stronę i dokonaj płatności. 💳"
     )
     try:
         if aukcja.obraz_url:
