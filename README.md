@@ -58,9 +58,10 @@ python bot.py
    - `aktualna_aukcja.html` – summary page generated from `templates/auction_template.html`
    - `aktualna_aukcja.json` – machine‑readable auction data
    - `orders/` – text file with basic order information
-5. Po zakończeniu aukcji zwycięzca otrzymuje prywatną wiadomość z potwierdzeniem
-   zakupu i wyborem metody płatności. Po wybraniu bot publikuje zamówienie na
-   kanale wskazanym w `ORDER_CHANNEL_ID`, gdzie możesz je potwierdzić reakcją
+5. Po zakończeniu aukcji zwycięzca otrzymuje prywatną wiadomość z gratulacjami
+   i instrukcją wyboru metody płatności. W przyszłości wiadomość będzie zawierać
+   link do strony z płatnościami i wysyłką. Po wyborze bot publikuje zamówienie
+   na kanale wskazanym w `ORDER_CHANNEL_ID`, gdzie możesz je potwierdzić reakcją
    ✅. Potwierdzenie wysyła kupującemu finalną wiadomość o przyjęciu zamówienia.
 
 Feel free to modify `templates/auction_template.html` to change how the summary page looks.

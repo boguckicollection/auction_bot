@@ -459,7 +459,8 @@ async def send_order_dm(aukcja: Aukcja):
     message = (
         f"Gratulacje! Wygrałeś licytację karty {aukcja.nazwa} {aukcja.numer} za {aukcja.cena:.2f} PLN.\n"
         f"Koszt wysyłki: 10,00 PLN (jeśli to Twoja pierwsza karta).\n"
-        "Wybierz metodę płatności i potwierdź zakup:"
+        "Wybierz metodę płatności i potwierdź zakup.\n"
+        "W przyszłości pojawi się tutaj link do strony z płatnościami i wysyłką."
     )
     try:
         if aukcja.obraz_url:
