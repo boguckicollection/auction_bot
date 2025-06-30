@@ -144,12 +144,12 @@ async def update_announcement_embed():
         embed.add_field(
             name="Cena",
             value=f"{aktualna_aukcja.cena:.2f} PLN",
-            inline=False,
+            inline=True,
         )
         embed.add_field(
             name="Prowadzi",
             value=f"{aktualna_aukcja.zwyciezca or 'Brak'}",
-            inline=False,
+            inline=True,
         )
 
         if aktualna_aukcja.start_time:
@@ -157,9 +157,9 @@ async def update_announcement_embed():
             pozostalo = int((koniec - datetime.datetime.utcnow()).total_seconds())
             pozostalo = max(pozostalo, 0)
             embed.add_field(
-                name="Koniec aukcji",
-                value=f"za {pozostalo}s",
-                inline=False,
+                name="Koniec za",
+                value=f"{pozostalo}s",
+                inline=True,
             )
 
         if aktualna_aukcja.obraz_url:
@@ -397,9 +397,9 @@ def zapisz_html(aukcja: Aukcja, template_path: str = "templates/auction_template
         template = Template(f.read())
 
     historia_html = ""
-    last = aukcja.historia[-4:]
+    last = list(reversed(aukcja.historia[-4:]))
     for i, (u, c, t) in enumerate(last):
-        strong = " font-weight:bold;" if i == len(last) - 1 else ""
+        strong = " font-weight:bold;" if i == 0 else ""
         historia_html += (
             f'<li style="{strong}"><span class="user">{u}</span> - '
             f'<span class="price">{c:.2f} PLN</span> - {t}</li>'
