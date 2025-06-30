@@ -211,6 +211,19 @@ async def announce_winner(aukcja: 'Aukcja'):
     )
     if aukcja.obraz_url:
         embed.set_thumbnail(url=aukcja.obraz_url)
+    if aukcje_kolejka:
+        next_info = f"{aukcje_kolejka[0].nazwa} ({aukcje_kolejka[0].numer})"
+        embed.add_field(
+            name="Następna karta",
+            value=next_info,
+            inline=False,
+        )
+    else:
+        embed.add_field(
+            name="Następna karta",
+            value="Brak kolejnych aukcji",
+            inline=False,
+        )
     view = AnnouncementView()
     global announcement_msg
     if announcement_msg:
@@ -559,6 +572,15 @@ async def zakoncz_aukcje(msg):
                 )
             except discord.HTTPException:
                 pass
+
+        if aukcje_kolejka:
+            next_text = f"Za chwilę kolejna karta: {aukcje_kolejka[0].nazwa} ({aukcje_kolejka[0].numer})"
+        else:
+            next_text = "Brak kolejnych kart"
+        try:
+            await msg.channel.send(f"Aukcja zakończona. {next_text}")
+        except discord.HTTPException:
+            pass
 
         if aktualna_aukcja.zwyciezca:
             zapisz_zamowienie(aktualna_aukcja)
