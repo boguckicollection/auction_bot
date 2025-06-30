@@ -425,6 +425,8 @@ def zapisz_html(aukcja: Aukcja, template_path: str = "templates/auction_template
         f.write(html)
 
 def zapisz_json(aukcja: Aukcja):
+    next_nazwa = aukcje_kolejka[0].nazwa if aukcje_kolejka else None
+    next_numer = aukcje_kolejka[0].numer if aukcje_kolejka else None
     dane = {
         "nazwa": aukcja.nazwa,
         "numer": aukcja.numer,
@@ -436,6 +438,8 @@ def zapisz_json(aukcja: Aukcja):
         "czas": aukcja.czas,
         "obraz": aukcja.obraz_url,
         "logo": aukcja.logo_url,
+        "next_nazwa": next_nazwa,
+        "next_numer": next_numer,
     }
     out_json = OUTPUT_DIR / 'aktualna_aukcja.json'
     with open(out_json, 'w', encoding='utf-8') as f:
