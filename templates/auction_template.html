@@ -32,8 +32,8 @@
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-[#1a1a29] to-[#0d0d17] text-gray-100" onload="startUpdates()">
-<div class="backdrop-blur-md bg-black/40 min-h-screen p-4 sm:p-8">
-    <div id="auction" class="bg-white/10 backdrop-blur-lg p-6 sm:p-8 rounded-xl max-w-3xl mx-auto shadow-xl">
+<div class="p-4 sm:p-8">
+    <div id="auction" class="bg-white/10 backdrop-blur-lg p-6 sm:p-8 rounded-xl max-w-4xl mx-auto shadow-xl">
         <div class="grid md:grid-cols-2 gap-6">
             <div class="flex flex-col items-center">
                 <img id="card-img" src="${obraz}" class="w-full rounded-lg shadow-lg mb-4 hidden" />
@@ -48,7 +48,7 @@
                 <h1 id="title" class="text-yellow-300 text-center md:text-left font-semibold text-3xl mb-2">${nazwa} (${numer})</h1>
                 <p id="desc" class="mb-4">${opis}</p>
                 <h4 class="text-yellow-300 font-semibold mb-2">Historia licytacji:</h4>
-                <ul id="history" class="list-none pl-0 space-y-1 max-h-40 overflow-y-auto pr-2">
+                <ul id="history" class="list-none pl-0 space-y-1 max-h-28 overflow-y-auto pr-2">
                     ${historia}
                 </ul>
             </div>
