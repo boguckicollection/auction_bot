@@ -264,8 +264,11 @@ async def update_auction_embed():
 async def countdown_task(message: discord.Message, seconds: int):
     await update_auction_embed()
     await update_announcement_embed()
-    for _ in range(seconds):
-        await asyncio.sleep(1)
+    remaining = float(seconds)
+    interval = 0.5
+    while remaining > 0:
+        await asyncio.sleep(interval)
+        remaining -= interval
         await update_auction_embed()
         await update_announcement_embed()
     await zakoncz_aukcje(message)
@@ -457,7 +460,15 @@ def zapisz_zamowienie(aukcja: Aukcja):
         )
 
 async def send_order_dm(aukcja: Aukcja):
-    if not isinstance(aukcja.zwyciezca, discord.User):
+    user = None
+    if isinstance(aukcja.zwyciezca, discord.abc.User):
+        user = aukcja.zwyciezca
+    elif hasattr(aukcja.zwyciezca, "id"):
+        try:
+            user = await bot.fetch_user(aukcja.zwyciezca.id)
+        except Exception:
+            user = None
+    if user is None:
         return
     due_date = (datetime.datetime.utcnow() + datetime.timedelta(days=2)).strftime('%d %B %Y %H:%M')
     view = OrderView(aukcja)
@@ -469,9 +480,9 @@ async def send_order_dm(aukcja: Aukcja):
     )
     try:
         if aukcja.obraz_url:
-            await aukcja.zwyciezca.send(aukcja.obraz_url)
-        await aukcja.zwyciezca.send(message, view=view)
-        await aukcja.zwyciezca.send(f"Masz czas do {due_date}.")
+            await user.send(aukcja.obraz_url)
+        await user.send(message, view=view)
+        await user.send(f"Masz czas do {due_date}.")
     except discord.Forbidden:
         pass
 
