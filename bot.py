@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import discord
 from discord.ext import commands, tasks
 import csv
@@ -26,6 +27,10 @@ OGLOSZENIA_KANAL_ID = int(os.getenv("OGLOSZENIA_KANAL_ID", "0"))
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 LIVE_CHAT_ID = os.getenv("LIVE_CHAT_ID")
 POKEMONTCG_API_TOKEN = os.getenv("POKEMONTCG_API_TOKEN")
+
+# Directory where aktualna_aukcja.html and aktualna_aukcja.json are stored
+OUTPUT_DIR = Path("templates")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 bot = commands.Bot(command_prefix='/', intents=discord.Intents.all())
 
@@ -415,7 +420,8 @@ def zapisz_html(aukcja: Aukcja, template_path: str = "templates/auction_template
         obraz=aukcja.obraz_url or "",
     )
 
-    with open("aktualna_aukcja.html", "w", encoding="utf-8") as f:
+    out_html = OUTPUT_DIR / "aktualna_aukcja.html"
+    with open(out_html, "w", encoding="utf-8") as f:
         f.write(html)
 
 def zapisz_json(aukcja: Aukcja):
@@ -431,7 +437,8 @@ def zapisz_json(aukcja: Aukcja):
         "obraz": aukcja.obraz_url,
         "logo": aukcja.logo_url,
     }
-    with open('aktualna_aukcja.json', 'w', encoding='utf-8') as f:
+    out_json = OUTPUT_DIR / 'aktualna_aukcja.json'
+    with open(out_json, 'w', encoding='utf-8') as f:
         json.dump(dane, f, ensure_ascii=False, indent=2)
 
 def generate_order_number() -> str:
