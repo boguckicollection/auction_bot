@@ -33,7 +33,7 @@
 </head>
 <body class="min-h-screen bg-gradient-to-br from-[#1e1e30] to-[#121220] text-gray-100" onload="startUpdates()">
 <div class="backdrop-blur-md bg-black/40 min-h-screen p-8">
-    <div id="auction" class="bg-[#191926b3] backdrop-blur-sm p-8 rounded-xl max-w-2xl mx-auto shadow-xl">
+    <div id="auction" class="bg-white/10 backdrop-blur-lg p-8 rounded-xl max-w-2xl mx-auto shadow-xl">
         <h1 id="title" class="text-yellow-300 text-center font-semibold text-3xl mb-2">${nazwa} (${numer})</h1>
         <p id="desc" class="mb-4">${opis}</p>
         <img id="card-img" src="${obraz}" class="mx-auto mb-4 max-w-full" style="display:none"/>
@@ -93,7 +93,7 @@ function fetchData(){
         if(data.historia){
             const newStamp = data.historia[data.historia.length-1]?.[2] || null;
             const isNew = newStamp && newStamp !== lastHistoryStamp;
-            historyData = data.historia.slice(-perPage);
+            historyData = data.historia.slice(-perPage).reverse();
             lastHistoryStamp = newStamp;
             renderHistory(isNew);
         }
@@ -144,7 +144,7 @@ function renderHistory(newItem=false){
     historyData.forEach(([u,c,t], idx)=>{
         const li = document.createElement('li');
         li.innerHTML = `<span class="user">${u}</span> - <span class="price">${c.toFixed(2)} PLN</span> - ${t}`;
-        if(newItem && idx === historyData.length - 1){
+        if(newItem && idx === 0){
             li.classList.add('font-bold');
             setTimeout(()=>li.classList.remove('font-bold'), 2000);
         }
