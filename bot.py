@@ -39,6 +39,7 @@ aktualna_aukcja = None
 youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY) if YOUTUBE_API_KEY else None
 yt_page_token = None
 pending_orders = {}
+pending_ok: dict[int, discord.User] = {}
 seller_panel_msg: discord.Message | None = None
 auction_msg: discord.Message | None = None
 user_bid_messages: dict[int, discord.Message] = {}
@@ -233,6 +234,20 @@ async def announce_winner(aukcja: 'Aukcja'):
             announcement_msg = await channel.send(embed=embed, view=view)
     else:
         announcement_msg = await channel.send(embed=embed, view=view)
+
+async def notify_seller_end(aukcja: 'Aukcja'):
+    """Przekaż wynik aukcji na kanał sprzedawcy."""
+    channel = bot.get_channel(SELLER_CHANNEL_ID)
+    if channel is None:
+        return
+    embed = discord.Embed(
+        title="Informacja o zakończeniu aukcji",
+        color=0xFF9900,
+    )
+    embed.add_field(name="Karta", value=f"{aukcja.nazwa} ({aukcja.numer})", inline=False)
+    embed.add_field(name="Cena", value=f"{aukcja.cena:.2f} PLN", inline=True)
+    embed.add_field(name="Zwycięzca", value=str(aukcja.zwyciezca or 'Brak'), inline=True)
+    await channel.send(embed=embed)
 
 
 
@@ -496,19 +511,16 @@ async def send_order_dm(aukcja: Aukcja):
             user = None
     if user is None:
         return
-    due_date = (datetime.datetime.utcnow() + datetime.timedelta(days=2)).strftime('%d %B %Y %H:%M')
-    view = OrderView(aukcja)
     message = (
         f"🎉 Gratulacje! Wygrałeś aukcję: **{aukcja.nazwa} ({aukcja.numer})** za **{aukcja.cena:.2f} PLN**.\n"
-        f"Koszt wysyłki: 10,00 PLN (jeśli to Twoja pierwsza karta).\n"
-        "Wybierz metodę płatności i potwierdź zakup.\n"
-        "Aby dokończyć zamówienie wejdź na stronę i dokonaj płatności. 💳"
+        "To jest test systemu. Czy wszystko jest OK?"
     )
     try:
         if aukcja.obraz_url:
-            await user.send(aukcja.obraz_url)
-        await user.send(message, view=view)
-        await user.send(f"Masz czas do {due_date}.")
+            message += f"\n{aukcja.obraz_url}"
+        dm = await user.send(message)
+        await dm.add_reaction("✅")
+        pending_ok[dm.id] = user
     except discord.Forbidden:
         pass
 
@@ -564,6 +576,7 @@ async def zakoncz_aukcje(msg):
             pass
 
         await announce_winner(aktualna_aukcja)
+        await notify_seller_end(aktualna_aukcja)
 
         if aktualna_aukcja.zwyciezca:
             try:
@@ -669,25 +682,6 @@ class LicytacjaView(discord.ui.View):
         await update_announcement_embed()
 
 
-class OrderView(discord.ui.View):
-    def __init__(self, aukcja: Aukcja):
-        super().__init__(timeout=None)
-        self.aukcja = aukcja
-
-    async def _process(self, interaction: discord.Interaction, method: str):
-        self.aukcja.payment_method = method
-        await interaction.response.send_message("Dziękujemy za potwierdzenie.", ephemeral=True)
-        await notify_order_channel(self.aukcja)
-        self.stop()
-
-    @discord.ui.button(label='BLIK', style=discord.ButtonStyle.primary)
-    async def blik(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._process(interaction, "BLIK")
-
-    @discord.ui.button(label='PRZELEW', style=discord.ButtonStyle.secondary)
-    async def przelew(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._process(interaction, "PRZELEW")
-
 
 @tasks.loop(seconds=1)
 async def refresh_panel():
@@ -732,5 +726,10 @@ async def on_reaction_add(reaction, user):
                 )
             except discord.Forbidden:
                 pass
+    if reaction.message.id in pending_ok and str(reaction.emoji) == "✅" and user == pending_ok.get(reaction.message.id):
+        pending_ok.pop(reaction.message.id, None)
+        channel = bot.get_channel(SELLER_CHANNEL_ID)
+        if channel:
+            await channel.send(f"Użytkownik {user} zaznaczył OK.")
 
 bot.run(TOKEN)
