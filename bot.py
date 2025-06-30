@@ -144,19 +144,21 @@ async def update_announcement_embed():
         embed.add_field(
             name="Cena",
             value=f"{aktualna_aukcja.cena:.2f} PLN",
-            inline=True,
+            inline=False,
         )
         embed.add_field(
             name="Prowadzi",
             value=f"{aktualna_aukcja.zwyciezca or 'Brak'}",
-            inline=True,
+            inline=False,
         )
 
         if aktualna_aukcja.start_time:
-            czas_koniec = aktualna_aukcja.start_time + datetime.timedelta(seconds=aktualna_aukcja.czas)
+            koniec = aktualna_aukcja.start_time + datetime.timedelta(seconds=aktualna_aukcja.czas)
+            pozostalo = int((koniec - datetime.datetime.utcnow()).total_seconds())
+            pozostalo = max(pozostalo, 0)
             embed.add_field(
                 name="Koniec aukcji",
-                value=czas_koniec.strftime('%H:%M:%S'),
+                value=f"za {pozostalo}s",
                 inline=False,
             )
 
@@ -513,9 +515,6 @@ async def zakoncz_aukcje(msg):
     if aktualna_aukcja:
         zapisz_html(aktualna_aukcja)
         zapisz_json(aktualna_aukcja)
-        if aktualna_aukcja.zwyciezca:
-            zapisz_zamowienie(aktualna_aukcja)
-            await send_order_dm(aktualna_aukcja)
 
         embed = discord.Embed(
             title=f"✅ Aukcja zako\u0144czona: {aktualna_aukcja.nazwa}",
@@ -541,6 +540,10 @@ async def zakoncz_aukcje(msg):
             pass
 
         await announce_winner(aktualna_aukcja)
+
+        if aktualna_aukcja.zwyciezca:
+            zapisz_zamowienie(aktualna_aukcja)
+            bot.loop.create_task(send_order_dm(aktualna_aukcja))
 
         # finalize user bid messages
         for m in list(user_bid_messages.values()):
