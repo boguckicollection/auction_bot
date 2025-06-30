@@ -51,9 +51,6 @@
                 <h3 id="winner" class="text-green-400 text-center text-3xl font-bold" style="display:none"></h3>
                 <p id="next-info" class="text-yellow-300 text-center text-xl mt-4" style="display:none"></p>
             </div>
-            <div>
-                <p id="desc" class="mb-4">${opis}</p>
-            </div>
         </div>
     </div>
 </div>
@@ -82,9 +79,13 @@ function fetchData(){
             end = null;
             totalTime = data.czas;
             document.getElementById('winner').style.display='none';
-            document.getElementById('desc').style.display='block';
+            document.getElementById('title').style.display='block';
+            document.getElementById('card-img').style.display='block';
             document.getElementById('price').style.display='block';
             document.getElementById('history').style.display='block';
+            document.getElementById('countdown').style.display='block';
+            const prog = document.getElementById('progress');
+            if(prog && prog.parentElement) prog.parentElement.style.display='block';
             lastPrice = null;
             lastStart = data.start_time;
             document.getElementById('progress').style.width = '100%';
@@ -93,7 +94,6 @@ function fetchData(){
         }
 
         document.getElementById('title').textContent = data.nazwa + ' (' + data.numer + ')';
-        document.getElementById('desc').textContent = data.opis;
         const priceEl = document.getElementById('price');
         priceEl.textContent = data.ostateczna_cena.toFixed(2) + ' PLN';
         if(lastPrice !== null && data.ostateczna_cena > lastPrice){
@@ -148,6 +148,18 @@ function updateCountdown(){
 function showWinner(data){
     const winnerEl = document.getElementById('winner');
     const nextEl = document.getElementById('next-info');
+    const titleEl = document.getElementById('title');
+    const img = document.getElementById('card-img');
+    const priceEl = document.getElementById('price');
+    const historyEl = document.getElementById('history');
+    const countdownEl = document.getElementById('countdown');
+    const prog = document.getElementById('progress');
+    if(titleEl) titleEl.style.display='none';
+    if(img) img.style.display='none';
+    if(priceEl) priceEl.style.display='none';
+    if(historyEl) historyEl.style.display='none';
+    if(countdownEl) countdownEl.style.display='none';
+    if(prog && prog.parentElement) prog.parentElement.style.display='none';
     winnerEl.style.display='block';
     winnerEl.classList.add('fade-in');
     if(data.zwyciezca){
