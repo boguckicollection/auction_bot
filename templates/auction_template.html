@@ -37,16 +37,17 @@
     <div id="auction" class="p-6 sm:p-8 rounded-xl max-w-5xl mx-auto bg-black/40 backdrop-blur">
         <div class="grid md:grid-cols-2 gap-6">
             <div class="flex flex-col items-center">
+                <h1 id="title" class="text-yellow-300 text-center font-semibold text-3xl mb-2">${nazwa} (${numer})</h1>
                 <img id="card-img" src="${obraz}" class="w-full rounded-lg shadow-lg mb-4 hidden" />
                 <h2 id="price" class="text-cyan-300 text-center font-bold text-6xl drop-shadow mb-4">${cena} PLN</h2>
-                <div class="w-full bg-gray-700 rounded h-3 mb-4 overflow-hidden">
+                <div class="w-full bg-gray-700 rounded h-3 mb-2 overflow-hidden">
                     <div id="progress" class="bg-cyan-400 h-full" style="width:100%"></div>
                 </div>
                 <div id="countdown" class="text-5xl font-semibold text-center mb-4 animate-pulse"></div>
                 <h3 id="winner" class="text-green-400 text-center text-3xl font-bold" style="display:none"></h3>
+                <p id="next-info" class="text-yellow-300 text-center text-xl mt-2" style="display:none"></p>
             </div>
             <div>
-                <h1 id="title" class="text-yellow-300 text-center md:text-left font-semibold text-3xl mb-2">${nazwa} (${numer})</h1>
                 <p id="desc" class="mb-4">${opis}</p>
                 <h4 class="text-yellow-300 font-semibold mb-2">Historia licytacji:</h4>
                 <ul id="history" class="list-none pl-0 space-y-1 max-h-28 overflow-y-auto pr-2">
@@ -74,6 +75,7 @@ function fetchData(){
     fetch('aktualna_aukcja.json',{cache:'no-cache'}).then(r=>r.json()).then(data=>{
         const list = document.getElementById('history');
         const img = document.getElementById('card-img');
+        const nextEl = document.getElementById('next-info');
 
         if(!lastStart || lastStart !== data.start_time){
             historyData = [];
@@ -86,6 +88,7 @@ function fetchData(){
             lastPrice = null;
             lastStart = data.start_time;
             document.getElementById('progress').style.width = '100%';
+            nextEl.style.display = 'none';
             renderHistory();
         }
 
@@ -144,13 +147,20 @@ function updateCountdown(){
 }
 function showWinner(data){
     const winnerEl = document.getElementById('winner');
+    const nextEl = document.getElementById('next-info');
     winnerEl.style.display='block';
     winnerEl.classList.add('fade-in');
     if(data.zwyciezca){
-        winnerEl.textContent = `Gratuluję! wygrał: ${data.zwyciezca} czekaj na wiadomość dm`;
+        winnerEl.textContent = `Gratuluję! wygrał: ${data.zwyciezca}`;
     } else {
         winnerEl.textContent = 'Aukcja zakończona bez zwycięzcy';
     }
+    if(data.next_nazwa){
+        nextEl.textContent = `Następna licytacja: ${data.next_nazwa} (${data.next_numer})`;
+    } else {
+        nextEl.textContent = 'Brak kolejnych licytacji';
+    }
+    nextEl.style.display='block';
     document.getElementById('desc').style.display='none';
     document.getElementById('price').style.display='none';
     document.getElementById('history').style.display='none';
