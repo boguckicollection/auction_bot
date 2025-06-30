@@ -398,11 +398,11 @@ def zapisz_html(aukcja: Aukcja, template_path: str = "templates/auction_template
 
     historia_html = ""
     last = list(reversed(aukcja.historia[-4:]))
-    for i, (u, c, t) in enumerate(last):
+    for i, (u, c, _t) in enumerate(last):
         strong = " font-weight:bold;" if i == 0 else ""
         historia_html += (
             f'<li style="{strong}"><span class="user">{u}</span> - '
-            f'<span class="price">{c:.2f} PLN</span> - {t}</li>'
+            f'<span class="price">{c:.2f} PLN</span></li>'
         )
 
     html = template.safe_substitute(
@@ -540,6 +540,14 @@ async def zakoncz_aukcje(msg):
             pass
 
         await announce_winner(aktualna_aukcja)
+
+        if aktualna_aukcja.zwyciezca:
+            try:
+                await msg.channel.send(
+                    f"Gratuluję!\nwygrał: {aktualna_aukcja.zwyciezca}\nczekaj na wiadomość DM"
+                )
+            except discord.HTTPException:
+                pass
 
         if aktualna_aukcja.zwyciezca:
             zapisz_zamowienie(aktualna_aukcja)

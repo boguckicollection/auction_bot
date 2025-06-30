@@ -31,9 +31,9 @@
         }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-[#1a1a29] to-[#0d0d17] text-gray-100" onload="startUpdates()">
+<body class="min-h-screen text-gray-100" onload="startUpdates()">
 <div class="p-4 sm:p-8">
-    <div id="auction" class="bg-white/10 backdrop-blur-lg p-6 sm:p-8 rounded-xl max-w-4xl mx-auto shadow-xl">
+    <div id="auction" class="p-6 sm:p-8 rounded-xl max-w-5xl mx-auto">
         <div class="grid md:grid-cols-2 gap-6">
             <div class="flex flex-col items-center">
                 <img id="card-img" src="${obraz}" class="w-full rounded-lg shadow-lg mb-4 hidden" />
@@ -105,7 +105,7 @@ function fetchData(){
         if(data.historia){
             const newStamp = data.historia[data.historia.length-1]?.[2] || null;
             const isNew = newStamp && newStamp !== lastHistoryStamp;
-            historyData = data.historia.slice(-perPage).reverse();
+            historyData = data.historia.slice(-perPage).map(h => [h[0], h[1]]).reverse();
             lastHistoryStamp = newStamp;
             renderHistory(isNew);
         }
@@ -146,7 +146,7 @@ function showWinner(data){
     winnerEl.style.display='block';
     winnerEl.classList.add('fade-in');
     if(data.zwyciezca){
-        winnerEl.innerHTML = `Gratulacje! Aukcję wygrał: <span class="text-yellow-300 font-bold">${data.zwyciezca}</span> - ${data.nazwa}`;
+        winnerEl.innerHTML = `Gratuluję!<br/>wygrał: <span class="text-yellow-300 font-bold">${data.zwyciezca}</span><br/>czekaj na wiadomość DM`;
     } else {
         winnerEl.textContent = 'Aukcja zakończona bez zwycięzcy';
     }
@@ -159,9 +159,9 @@ function showWinner(data){
 function renderHistory(newItem=false){
     const list = document.getElementById('history');
     list.innerHTML = '';
-    historyData.forEach(([u,c,t], idx)=>{
+    historyData.forEach(([u,c], idx)=>{
         const li = document.createElement('li');
-        li.innerHTML = `<span class="user">${u}</span> - <span class="price">${c.toFixed(2)} PLN</span> - ${t}`;
+        li.innerHTML = `<span class="user">${u}</span> - <span class="price">${c.toFixed(2)} PLN</span>`;
         if(idx === 0){
             li.classList.add('text-indigo-300');
             if(newItem){
