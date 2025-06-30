@@ -6,60 +6,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            font-family: 'Poppins', Helvetica, sans-serif;
-            margin:0;
-            background:linear-gradient(135deg,#1e1e30,#121220);
-            color:#f0f0f0;
-        }
-        .overlay {
-            backdrop-filter: blur(6px);
-            background: rgba(0,0,0,0.55);
-            min-height:100vh;
-            padding:2em;
-        }
-        .card {
-            background: rgba(25,25,38,0.9);
-            padding:2em 2.5em;
-            border-radius:16px;
-            max-width:700px;
-            margin:auto;
-            box-shadow:0 15px 35px rgba(0,0,0,0.5);
-        }
-        h1,h2,h3 {
-            color:#ffdf5e;
-            margin-top:0;
-            text-align:center;
-            font-weight:600;
-            letter-spacing:0.5px;
-        }
-        ul { padding-left:1em; list-style:none; }
-        li { margin-bottom:0.5em; }
-        .new-bid { animation: fadeIn 0.5s ease-in; }
-        @keyframes fadeIn { from{opacity:0; transform:translateY(-5px);} to{opacity:1; transform:translateY(0);} }
-        #countdown {
-            font-size:3em;
-            margin-bottom:1em;
-            animation:pulse 1s infinite;
-            text-align:center;
-            font-weight:600;
-            color:#dddddd;
-        }
-        #winner {
-            font-size:2.2em;
-            font-weight:600;
-            text-align:center;
-            color:#5cffb0;
-        }
+        body { font-family: 'Poppins', Helvetica, sans-serif; }
         #countdown.red { color:#ff6464; }
-        #price {
-            font-size:7em;
-            text-align:center;
-            color:#5cffb0;
-            text-shadow:0 0 10px rgba(92,255,176,0.7);
-            position:relative;
-        }
         #price.up::after {
             content:'\25B2';
             color:#5cffb0;
@@ -72,24 +22,19 @@
             0% {transform:translateY(10px); opacity:0;}
             100% {transform:translateY(-10px); opacity:1;}
         }
-        @keyframes pulse {
-            0% { transform:scale(1); }
-            50% { transform:scale(1.1); }
-            100% { transform:scale(1); }
-        }
     </style>
 </head>
-<body onload="startUpdates()">
-<div class="overlay">
-    <div class="card" id="auction">
-        <h1 id="title">${nazwa} (${numer})</h1>
-        <p id="desc">${opis}</p>
-        <img id="card-img" src="${obraz}" style="max-width:100%;display:none"/>
-        <h2 id="price">${cena} PLN</h2>
-        <div id="countdown"></div>
-        <h3 id="winner" style="display:none"></h3>
-        <h4>Historia licytacji:</h4>
-        <ul id="history">
+<body class="min-h-screen bg-gradient-to-br from-[#1e1e30] to-[#121220] text-gray-100" onload="startUpdates()">
+<div class="backdrop-blur-sm bg-black/60 min-h-screen p-8">
+    <div id="auction" class="bg-[#191926e6] p-8 rounded-xl max-w-2xl mx-auto shadow-xl">
+        <h1 id="title" class="text-yellow-300 text-center font-semibold text-2xl mb-2">${nazwa} (${numer})</h1>
+        <p id="desc" class="mb-4">${opis}</p>
+        <img id="card-img" src="${obraz}" class="mx-auto mb-4 max-w-full" style="display:none"/>
+        <h2 id="price" class="text-green-300 text-center font-bold text-6xl drop-shadow mb-4">${cena} PLN</h2>
+        <div id="countdown" class="text-4xl font-semibold text-center mb-4 animate-pulse"></div>
+        <h3 id="winner" class="text-green-400 text-center text-2xl font-bold" style="display:none"></h3>
+        <h4 class="text-yellow-300 font-semibold mb-2">Historia licytacji:</h4>
+        <ul id="history" class="list-none pl-0 space-y-1">
             ${historia}
         </ul>
     </div>
