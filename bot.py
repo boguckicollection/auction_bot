@@ -391,9 +391,14 @@ def zapisz_html(aukcja: Aukcja, template_path: str = "templates/auction_template
     with open(template_path, encoding="utf-8") as f:
         template = Template(f.read())
 
-    historia_html = "".join(
-        f"<li>{u} - {c:.2f} PLN - {t}</li>" for u, c, t in aukcja.historia[-4:]
-    )
+    historia_html = ""
+    last = aukcja.historia[-4:]
+    for i, (u, c, t) in enumerate(last):
+        strong = " font-weight:bold;" if i == len(last) - 1 else ""
+        historia_html += (
+            f'<li style="{strong}"><span class="user">{u}</span> - '
+            f'<span class="price">{c:.2f} PLN</span> - {t}</li>'
+        )
 
     html = template.safe_substitute(
         nazwa=aukcja.nazwa,

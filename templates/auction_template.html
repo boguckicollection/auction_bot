@@ -18,6 +18,8 @@
             top:0;
             animation:rise 0.6s ease-out;
         }
+        .price { color:#f6d860; font-weight:600; }
+        .user { font-weight:600; }
         @keyframes rise {
             0% {transform:translateY(10px); opacity:0;}
             100% {transform:translateY(-10px); opacity:1;}
@@ -25,8 +27,8 @@
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-[#1e1e30] to-[#121220] text-gray-100" onload="startUpdates()">
-<div class="backdrop-blur-sm bg-black/60 min-h-screen p-8">
-    <div id="auction" class="bg-[#191926e6] p-8 rounded-xl max-w-2xl mx-auto shadow-xl">
+<div class="backdrop-blur-md bg-black/40 min-h-screen p-8">
+    <div id="auction" class="bg-[#191926b3] backdrop-blur-sm p-8 rounded-xl max-w-2xl mx-auto shadow-xl">
         <h1 id="title" class="text-yellow-300 text-center font-semibold text-2xl mb-2">${nazwa} (${numer})</h1>
         <p id="desc" class="mb-4">${opis}</p>
         <img id="card-img" src="${obraz}" class="mx-auto mb-4 max-w-full" style="display:none"/>
@@ -45,6 +47,7 @@ const perPage = 4;
 let started = false;
 let lastStart = null;
 let lastPrice = null;
+let lastHistoryStamp = null;
 function startUpdates(){
     started = true;
     fetchData();
@@ -83,8 +86,11 @@ function fetchData(){
             img.style.display = 'block';
         }
         if(data.historia){
+            const newStamp = data.historia[data.historia.length-1]?.[2] || null;
+            const isNew = newStamp && newStamp !== lastHistoryStamp;
             historyData = data.historia.slice(-perPage);
-            renderHistory();
+            lastHistoryStamp = newStamp;
+            renderHistory(isNew);
         }
         auctionData = data;
         if(data.start_time){
@@ -116,7 +122,7 @@ function showWinner(data){
     const winnerEl = document.getElementById('winner');
     winnerEl.style.display='block';
     if(data.zwyciezca){
-        winnerEl.textContent = `Gratulacje! Aukcję wygrał: ${data.zwyciezca} - ${data.nazwa}`;
+        winnerEl.innerHTML = `Gratulacje! Aukcję wygrał: <span class="text-yellow-300 font-bold">${data.zwyciezca}</span> - ${data.nazwa}`;
     } else {
         winnerEl.textContent = 'Aukcja zakończona bez zwycięzcy';
     }
@@ -126,14 +132,18 @@ function showWinner(data){
     document.getElementById('history').innerHTML='';
 }
 
-function renderHistory(){
+function renderHistory(newItem=false){
     const list = document.getElementById('history');
     list.innerHTML = '';
-    for(const [u,c,t] of historyData){
+    historyData.forEach(([u,c,t], idx)=>{
         const li = document.createElement('li');
-        li.textContent = `${u} - ${c.toFixed(2)} PLN - ${t}`;
+        li.innerHTML = `<span class="user">${u}</span> - <span class="price">${c.toFixed(2)} PLN</span> - ${t}`;
+        if(newItem && idx === historyData.length - 1){
+            li.classList.add('font-bold');
+            setTimeout(()=>li.classList.remove('font-bold'), 2000);
+        }
         list.appendChild(li);
-    }
+    });
 }
 </script>
 </body>
