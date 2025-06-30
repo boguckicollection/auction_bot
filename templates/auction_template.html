@@ -12,7 +12,7 @@
         #countdown.red { color:#ff6464; }
         #price.up::after {
             content:'\25B2';
-            color:#5cffb0;
+            color:#67e8f9;
             position:absolute;
             right:-0.6em;
             top:0;
@@ -31,19 +31,28 @@
         }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-[#1e1e30] to-[#121220] text-gray-100" onload="startUpdates()">
-<div class="backdrop-blur-md bg-black/40 min-h-screen p-8">
-    <div id="auction" class="bg-white/10 backdrop-blur-lg p-8 rounded-xl max-w-2xl mx-auto shadow-xl">
-        <h1 id="title" class="text-yellow-300 text-center font-semibold text-3xl mb-2">${nazwa} (${numer})</h1>
-        <p id="desc" class="mb-4">${opis}</p>
-        <img id="card-img" src="${obraz}" class="mx-auto mb-4 max-w-full" style="display:none"/>
-        <h2 id="price" class="text-green-300 text-center font-bold text-6xl drop-shadow mb-4">${cena} PLN</h2>
-        <div id="countdown" class="text-5xl font-semibold text-center mb-4 animate-pulse"></div>
-        <h3 id="winner" class="text-green-400 text-center text-3xl font-bold" style="display:none"></h3>
-        <h4 class="text-yellow-300 font-semibold mb-2">Historia licytacji:</h4>
-        <ul id="history" class="list-none pl-0 space-y-1">
-            ${historia}
-        </ul>
+<body class="min-h-screen bg-gradient-to-br from-[#1a1a29] to-[#0d0d17] text-gray-100" onload="startUpdates()">
+<div class="backdrop-blur-md bg-black/40 min-h-screen p-4 sm:p-8">
+    <div id="auction" class="bg-white/10 backdrop-blur-lg p-6 sm:p-8 rounded-xl max-w-3xl mx-auto shadow-xl">
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="flex flex-col items-center">
+                <img id="card-img" src="${obraz}" class="w-full rounded-lg shadow-lg mb-4 hidden" />
+                <h2 id="price" class="text-cyan-300 text-center font-bold text-6xl drop-shadow mb-4">${cena} PLN</h2>
+                <div class="w-full bg-gray-700 rounded h-3 mb-4 overflow-hidden">
+                    <div id="progress" class="bg-cyan-400 h-full" style="width:100%"></div>
+                </div>
+                <div id="countdown" class="text-5xl font-semibold text-center mb-4 animate-pulse"></div>
+                <h3 id="winner" class="text-green-400 text-center text-3xl font-bold" style="display:none"></h3>
+            </div>
+            <div>
+                <h1 id="title" class="text-yellow-300 text-center md:text-left font-semibold text-3xl mb-2">${nazwa} (${numer})</h1>
+                <p id="desc" class="mb-4">${opis}</p>
+                <h4 class="text-yellow-300 font-semibold mb-2">Historia licytacji:</h4>
+                <ul id="history" class="list-none pl-0 space-y-1 max-h-40 overflow-y-auto pr-2">
+                    ${historia}
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 <script>
@@ -53,6 +62,7 @@ let started = false;
 let lastStart = null;
 let lastPrice = null;
 let lastHistoryStamp = null;
+let totalTime = null;
 function startUpdates(){
     started = true;
     fetchData();
@@ -67,12 +77,14 @@ function fetchData(){
         if(!lastStart || lastStart !== data.start_time){
             historyData = [];
             end = null;
+            totalTime = data.czas;
             document.getElementById('winner').style.display='none';
             document.getElementById('desc').style.display='block';
             document.getElementById('price').style.display='block';
             document.getElementById('history').style.display='block';
             lastPrice = null;
             lastStart = data.start_time;
+            document.getElementById('progress').style.width = '100%';
             renderHistory();
         }
 
@@ -113,14 +125,20 @@ function updateCountdown(){
     const now = new Date();
     const diff = Math.floor((end - now)/1000);
     const div = document.getElementById('countdown');
+    const bar = document.getElementById('progress');
     if(diff <= 10) div.classList.add('red');
     if(diff <= 0){
         div.textContent = 'KONIEC';
+        if(bar) bar.style.width = '0%';
         if(auctionData){
             showWinner(auctionData);
         }
     }else{
         div.textContent = diff + ' s';
+        if(totalTime){
+            const percent = Math.max(0, Math.min(100, (diff/totalTime)*100));
+            if(bar) bar.style.width = percent + '%';
+        }
     }
 }
 function showWinner(data){
@@ -144,9 +162,12 @@ function renderHistory(newItem=false){
     historyData.forEach(([u,c,t], idx)=>{
         const li = document.createElement('li');
         li.innerHTML = `<span class="user">${u}</span> - <span class="price">${c.toFixed(2)} PLN</span> - ${t}`;
-        if(newItem && idx === 0){
-            li.classList.add('font-bold');
-            setTimeout(()=>li.classList.remove('font-bold'), 2000);
+        if(idx === 0){
+            li.classList.add('text-indigo-300');
+            if(newItem){
+                li.classList.add('font-bold');
+                setTimeout(()=>li.classList.remove('font-bold'), 2000);
+            }
         }
         list.appendChild(li);
     });
