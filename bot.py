@@ -66,8 +66,10 @@ def fetch_card_assets(nazwa: str, numer: str) -> tuple[str | None, str | None]:
     # First try to fetch by card ID (e.g. sv2-10)
     try:
         resp = requests.get(f"{base}/{numer}", headers=headers, timeout=5)
+        logging.info("GET %s -> %s", resp.url, resp.status_code)
         resp.raise_for_status()
         card = resp.json().get("data")
+        logging.info("Lookup result: %s", card.get("name") if card else "None")
         return _parse(card)
     except Exception as e:
         logging.warning("Direct lookup for %s failed: %s", numer, e)
@@ -83,9 +85,12 @@ def fetch_card_assets(nazwa: str, numer: str) -> tuple[str | None, str | None]:
             parts.append(f'set.id:{set_id}')
         query = " ".join(parts)
         params = {"q": query, "pageSize": 1}
+        logging.info("Search query: %s", query)
         resp = requests.get(base, params=params, headers=headers, timeout=5)
+        logging.info("GET %s -> %s", resp.url, resp.status_code)
         resp.raise_for_status()
         cards = resp.json().get("data")
+        logging.info("Search returned %s result(s)", len(cards) if cards else 0)
         if cards:
             return _parse(cards[0])
         logging.warning("No results for query: %s", query)
